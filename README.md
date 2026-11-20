@@ -52,14 +52,12 @@ encoder streams to the Pluto itself), *Relay* (Longmynd RX re-transmitted).
 
 ## Building
 Push to `main` and the GitHub Actions workflow builds `DatvTx.exe`, bundles a GPL FFmpeg build
-(BtbN) and creates an Inno Setup installer. Both appear as workflow artifacts. Locally: `dotnet build -c Release`
+(BtbN, includes x264, x265, H.266 VVC, AV1 and NVENC) and creates an Inno Setup installer. Both appear as workflow artifacts. Locally: `dotnet build -c Release`
 (targets .NET Framework 4.7.2, so nothing extra needs installing on Windows 10/11).
 
 ## Not yet ported
 - GSE / IP mode (iptables and routing on the Pluto).
 - Changing SR, FEC or mode on the Lime/HackRF while transmitting. Stop and START again for now.
-- The custom `ffmpeg-new` build from DATV-NotSoEasy with VVC (H.266). Point *Settings → FFmpeg folder* at
-  it if you need H.266. The workflow log shows which encoders the bundled build has.
 
 ## Credits and licences
 - DATV-NotSoEasy by DL5OCD: the original logic and parameters.
