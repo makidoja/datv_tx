@@ -1,0 +1,85 @@
+name: Windows build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build Release
+        run: dotnet build DatvTx.csproj -c Release -o out
+
+      - name: Setup MSYS2 (MinGW-w64)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            git
+
+      - name: Build modulator helper (datvtx_mod.exe)
+        shell: msys2 {0}
+        run: |
+          git clone https://github.com/F5OEO/libdvbmod modhelper/external/libdvbmod
+          git -C modhelper/external/libdvbmod checkout eff68b37047196e5bc732b08fa7f73c2bf94107e
+          cmake -S modhelper -B modhelper/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build modhelper/build
+          cp modhelper/build/datvtx_mod.exe out/
+          ./out/datvtx_mod.exe --bitrate --const qpsk --fec 2/3 --sr 333000
+
+      - name: Add FFmpeg (BtbN GPL build)
+        shell: pwsh
+        run: |
+          $url = 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip'
+          $zip = Join-Path $env:RUNNER_TEMP 'ffmpeg.zip'
+          & curl.exe -L --fail --retry 5 --retry-delay 5 --retry-all-errors --output $zip $url
+          if ($LASTEXITCODE -ne 0) { throw "FFmpeg download failed ($LASTEXITCODE)" }
+          $dest = Join-Path $env:RUNNER_TEMP 'ffmpeg'
+          Expand-Archive -Path $zip -DestinationPath $dest -Force
+          $bin = Get-ChildItem -Path $dest -Directory -Recurse | Where-Object { $_.Name -eq 'bin' } | Select-Object -First 1
+          New-Item -ItemType Directory -Force -Path 'out/ffmpeg' | Out-Null
+          Copy-Item "$($bin.FullName)\ffmpeg.exe","$($bin.FullName)\ffplay.exe","$($bin.FullName)\ffprobe.exe" 'out/ffmpeg/'
+          $lic = Get-ChildItem -Path $dest -Recurse -Filter 'LICENSE*' | Select-Object -First 1
+          if ($lic) { Copy-Item $lic.FullName 'out/ffmpeg/LICENSE.txt' }
+          & 'out/ffmpeg/ffmpeg.exe' -hide_banner -encoders | Select-String -Pattern 'libx264|libx265|libvvenc|libsvtav1|libaom|nvenc'
+
+      - name: Verify output
+        shell: pwsh
+        run: |
+          foreach ($f in 'out/DatvTx.exe','out/datvtx_mod.exe','out/MQTTnet.dll','out/Newtonsoft.Json.dll','out/ffmpeg/ffmpeg.exe','out/ffmpeg/ffplay.exe') {
+            if (-not (Test-Path $f)) { throw "$f missing" }
+          }
+
+      - name: Upload portable build
+        uses: actions/upload-artifact@v4
+        with:
+          name: DatvTx-portable
+          path: out/
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          & $iscc 'installer\DatvTx.iss'
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup failed' }
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: DatvTx-Windows-Installer
+          path: installer-output/*.exe

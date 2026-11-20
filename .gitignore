@@ -1,0 +1,8 @@
+bin/
+obj/
+out/
+installer-output/
+.vs/
+*.user
+modhelper/build/
+modhelper/external/
