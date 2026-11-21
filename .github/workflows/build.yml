@@ -111,10 +111,16 @@ jobs:
           if ($o -notmatch 'no HackRF found') { throw 'unexpected modulator output' }
           exit 0
 
-      - name: Add FFmpeg (BtbN GPL build)
+      - name: Add FFmpeg (BtbN GPL build, 7.1 branch for NVENC compatibility)
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          $url = 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip'
+          # FFmpeg 7.1 is built with NVENC SDK 11.1 (NVIDIA driver 470+). Master/8.x/9.x need driver 570-610+,
+          # which breaks GTX 10-series and Studio-driver users. BtbN keeps monthly builds for two years.
+          $url = gh api "repos/BtbN/FFmpeg-Builds/releases?per_page=100" --paginate --jq '.[] | .assets[] | select(.name | test("^ffmpeg-n7\\.1-.*-win64-gpl-7\\.1\\.zip$")) | .browser_download_url' | Select-Object -First 1
+          if (-not $url) { throw 'No BtbN FFmpeg 7.1 win64 GPL build found' }
+          Write-Host "FFmpeg: $url"
           $zip = Join-Path $env:RUNNER_TEMP 'ffmpeg.zip'
           & curl.exe -L --fail --retry 5 --retry-delay 5 --retry-all-errors --output $zip $url
           if ($LASTEXITCODE -ne 0) { throw "FFmpeg download failed ($LASTEXITCODE)" }

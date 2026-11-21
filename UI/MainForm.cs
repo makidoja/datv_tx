@@ -100,7 +100,16 @@ namespace DatvTx.UI
             if (_s.CompactMode) SetCompact(true);
             ApplyTopMost();
 
-            _ffmpeg.Log += l => UI(() => AppendLog(l));
+            _ffmpeg.Log += l => UI(() =>
+            {
+                AppendLog(l);
+                if (l.IndexOf("required nvenc API version", StringComparison.OrdinalIgnoreCase) >= 0)
+                    AppendLog(">> Your NVIDIA driver is older than this FFmpeg needs. Update the driver, or set Settings → FFmpeg folder to another FFmpeg build.");
+                else if (l.IndexOf("Cannot load nvcuda", StringComparison.OrdinalIgnoreCase) >= 0 || l.IndexOf("No capable devices found", StringComparison.OrdinalIgnoreCase) >= 0)
+                    AppendLog(">> No usable NVIDIA GPU found - choose a CPU or other GPU codec.");
+                else if (l.IndexOf("amf", StringComparison.OrdinalIgnoreCase) >= 0 && l.IndexOf("Failed", StringComparison.OrdinalIgnoreCase) >= 0)
+                    AppendLog(">> AMD encoder failed - check the AMD graphics driver is installed, or choose a CPU codec.");
+            });
             _ffmpeg.Stats += st => { _lastStats = st; };
             _ffmpeg.Exited += code => UI(() => OnEncoderExited(code));
 
