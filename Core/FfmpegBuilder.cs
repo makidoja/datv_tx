@@ -20,35 +20,57 @@ namespace DatvTx.Core
 
         private static string N(double d) { return d.ToString("0.###", Inv); }
 
-        public static string BuildArgs(TxParams p, AppSettings s, EncodePlan e, string outputUrl)
+        /// <summary>
+        /// Audio sample rate: AAC at very low bitrates sounds better (and ffmpeg stops warning) at a lower rate.
+        /// </summary>
+        public static int AudioRate(TxParams p, AppSettings s)
+        {
+            double perChannel = p.AudioBitrateK / (double)System.Math.Max(1, p.AudioChannels);
+            if (s.AudioCodec == "aac" || s.AudioCodec == "libfdk_aac")
+            {
+                if (perChannel <= 8) return System.Math.Min(s.AudioSampleRate, 24000);
+                if (perChannel <= 16) return System.Math.Min(s.AudioSampleRate, 32000);
+            }
+            return s.AudioSampleRate;
+        }
+
+        /// <param name="inputOverride">Replaces the input section (used by the build self-test).</param>
+        /// <param name="outputPrefix">Inserted before the output (e.g. "-t 4" for the self-test).</param>
+        public static string BuildArgs(TxParams p, AppSettings s, EncodePlan e, string outputUrl, string inputOverride = null, string outputPrefix = null)
         {
             var a = new List<string>();
             a.Add("-hide_banner");
             a.Add("-itsoffset " + N(s.AudioOffset));
-
             // ---- input
             // Current FFmpeg (7.x/8.x) no longer accepts -thread_queue_size on inputs, so only the
             // DirectShow real-time buffer is set here.
             string rtbuf = "-rtbufsize " + s.RtBufMb + "M";
-            switch (p.Input)
+            if (inputOverride != null)
             {
-                case InputType.Capture:
-                    a.Add("-f dshow " + rtbuf + " -i " + Q("video=" + p.VideoDevice));
-                    if (!string.IsNullOrWhiteSpace(p.AudioDevice))
-                        a.Add("-f dshow " + rtbuf + " -i " + Q("audio=" + p.AudioDevice));
-                    break;
-                case InputType.NetworkUdp:
-                    a.Add("-i " + Q(s.InputUdp));
-                    break;
-                case InputType.NetworkRtmp:
-                    a.Add("-f flv -listen 1 -i " + Q(s.InputRtmp));
-                    break;
-                case InputType.File:
-                    a.Add("-re -stream_loop " + s.FileLoop + " -i " + Q(p.InputFile));
-                    break;
+                a.Add(inputOverride);
+            }
+            else
+            {
+                switch (p.Input)
+                {
+                    case InputType.Capture:
+                        a.Add("-f dshow " + rtbuf + " -i " + Q("video=" + p.VideoDevice));
+                        if (!string.IsNullOrWhiteSpace(p.AudioDevice))
+                            a.Add("-f dshow " + rtbuf + " -i " + Q("audio=" + p.AudioDevice));
+                        break;
+                    case InputType.NetworkUdp:
+                        a.Add("-i " + Q(s.InputUdp));
+                        break;
+                    case InputType.NetworkRtmp:
+                        a.Add("-f flv -listen 1 -i " + Q(s.InputRtmp));
+                        break;
+                    case InputType.File:
+                        a.Add("-re -stream_loop " + s.FileLoop + " -i " + Q(p.InputFile));
+                        break;
+                }
             }
 
-            a.Add("-ar " + s.AudioSampleRate);
+            a.Add("-ar " + AudioRate(p, s));
             a.Add("-vcodec " + p.Codec);
             a.Add("-s " + p.ImageSize);
             a.Add("-b:v " + N(e.VideoBitrateK) + "K");
@@ -89,7 +111,8 @@ namespace DatvTx.Core
                     a.Add(shaping);
                     break;
                 case "libvvenc":
-                    a.Add("-preset " + s.PresetVvc + " -subjopt 0 -r " + fps);
+                    // DL5OCD's custom build had -subjopt; standard FFmpeg's libvvenc does not.
+                    a.Add("-preset " + s.PresetVvc + " -r " + fps);
                     a.Add("-vvenc-params RefreshSec=2:targetBitrate=" + e.TargetBitrate + ":MaxBitrate=" + e.MaxBitrate + ":FirstPassMode=2:POC0IDR=1");
                     break;
                 case "av1_nvenc":
@@ -102,8 +125,9 @@ namespace DatvTx.Core
                     a.Add(shaping);
                     break;
                 case "libsvtav1":
-                    a.Add("-preset 5 -crf " + s.Av1Quality + " -svtav1-params tune=0:rc=1");
-                    a.Add(shaping);
+                    // Current SVT-AV1 rejects a max bitrate in VBR mode. Use its CBR mode
+                    // (needs the low-delay prediction structure) and a real-time preset.
+                    a.Add("-preset 10 -r " + fps + " -svtav1-params tune=0:rc=2:pred-struct=1");
                     break;
             }
 
@@ -122,6 +146,7 @@ namespace DatvTx.Core
             a.Add("-metadata service_provider=" + Q(s.ServiceProvider));
             a.Add("-metadata service_name=" + Q(s.Callsign));
             a.Add("-af aresample=async=1");
+            if (outputPrefix != null) a.Add(outputPrefix);
             a.Add(Q(outputUrl));
 
             var sb = new StringBuilder();

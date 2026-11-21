@@ -57,6 +57,13 @@ jobs:
           if ($lic) { Copy-Item $lic.FullName 'out/ffmpeg/LICENSE.txt' }
           & 'out/ffmpeg/ffmpeg.exe' -hide_banner -encoders | Select-String -Pattern 'libx264|libx265|libvvenc|libsvtav1|libaom|nvenc|_amf|_qsv'
 
+      - name: Encoder self-test (every CPU codec through the real command builder)
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath 'out/DatvTx.exe' -ArgumentList '--selftest','selftest.log' -Wait -PassThru
+          Get-Content 'selftest.log'
+          if ($p.ExitCode -ne 0) { throw "Encoder self-test failed" }
+
       - name: Verify output
         shell: pwsh
         run: |
