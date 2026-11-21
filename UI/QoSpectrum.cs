@@ -28,7 +28,7 @@ namespace DatvTx.UI
 
         /// <summary>
         /// Level of the transmit channel relative to the beacon in dB (dBb), or NaN when there is no
-        /// beacon reference or nothing above the noise on the channel. Raised on the UI thread per frame.
+        /// beacon reference or nothing above the noise on the channel. Raised on the feed thread per frame.
         /// </summary>
         public event Action<double> LevelUpdated;
 
@@ -190,7 +190,7 @@ namespace DatvTx.UI
             var h = LevelUpdated;
             double v = _dbb;
             if (h != null)
-                try { if (IsHandleCreated && !IsDisposed) BeginInvoke((MethodInvoker)(() => h(v))); } catch { }
+                try { h(v); } catch { } // called on the feed thread; the form marshals to the UI thread
         }
 
         private void SafeInvalidate()

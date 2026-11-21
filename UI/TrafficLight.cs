@@ -46,8 +46,8 @@ namespace DatvTx.UI
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.Clear(BackColor);
 
-            int d = 30;
-            int gap = 14;
+            int d = 24;
+            int gap = 9;
             int housingW = 3 * d + 4 * gap;
             var housing = new Rectangle(0, 2, housingW, d + 12);
             using (var path = Rounded(housing, 10))
@@ -72,8 +72,8 @@ namespace DatvTx.UI
                 case TxLight.Ready: caption = "READY"; colour = Theme.Green; break;
                 default: caption = "NOT READY"; colour = Theme.Muted; break;
             }
-            int tx = housingW + 14;
-            using (var f = Theme.Semi(12f))
+            int tx = housingW + 10;
+            using (var f = Theme.Semi(11f))
                 TextRenderer.DrawText(g, caption, f, new Rectangle(tx, 2, Width - tx, d + 12), colour,
                     TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
             if (_warn)

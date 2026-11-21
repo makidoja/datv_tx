@@ -37,7 +37,10 @@ namespace DatvTx.UI
         // spectrum
         private QoSpectrum _spectrum;
         private Panel _spectrumCard;
-        private TableLayoutPanel _root;
+        private TableLayoutPanel _root, _body;
+        private Control _header, _tabsCard, _logCard, _txCard;
+        private Button _btnCompact;
+        private bool _compact;
 
         // tabs
         private readonly List<Button> _tabButtons = new List<Button>();
@@ -82,8 +85,8 @@ namespace DatvTx.UI
             ForeColor = Theme.Text;
             Font = Theme.Ui(9f);
             StartPosition = FormStartPosition.CenterScreen;
-            MinimumSize = new Size(1120, 820);
-            Size = new Size(1280, 900);
+            MinimumSize = new Size(960, 820);
+            Size = new Size(Math.Max(960, _s.NormalWidth), Math.Max(820, _s.NormalHeight));
             AutoScaleMode = AutoScaleMode.Dpi;
 
             BuildUi();
@@ -91,6 +94,7 @@ namespace DatvTx.UI
             ApplyParams(_s.LastRun ?? new TxParams());
             RefreshMemories();
             ShowSpectrum(_s.ShowSpectrum);
+            if (_s.CompactMode) SetCompact(true);
 
             _ffmpeg.Log += l => UI(() => AppendLog(l));
             _ffmpeg.Stats += st => { _lastStats = st; };
@@ -115,7 +119,8 @@ namespace DatvTx.UI
             _root.RowStyles.Add(new RowStyle(SizeType.Absolute, 120));
             Controls.Add(_root);
 
-            _root.Controls.Add(BuildHeader(), 0, 0);
+            _header = BuildHeader();
+            _root.Controls.Add(_header, 0, 0);
 
             _spectrumCard = Theme.Card();
             _spectrumCard.Dock = DockStyle.Fill;
@@ -123,25 +128,26 @@ namespace DatvTx.UI
             _spectrumCard.Padding = new Padding(6, 4, 6, 4);
             _spectrum = new QoSpectrum { Dock = DockStyle.Fill };
             _spectrum.ChannelPicked += (down, sr) => BeginInvoke((Action)(async () => await ChannelPicked(down, sr)));
-            _spectrum.LevelUpdated += v => { _dbb = v; ShowDbb(); };
+            _spectrum.LevelUpdated += v => UI(() => { _dbb = v; ShowDbb(); });
             var specTitle = new Label { Text = "QO-100 WIDEBAND  •  BATC live spectrum  •  click a channel to set the TX frequency", Dock = DockStyle.Top, Height = 20, ForeColor = Theme.Muted, Font = Theme.Semi(8.5f), Padding = new Padding(6, 0, 0, 0) };
             _spectrumCard.Controls.Add(_spectrum);
             _spectrumCard.Controls.Add(specTitle);
             _root.Controls.Add(_spectrumCard, 0, 1);
 
-            var body = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Theme.Bg, Margin = new Padding(0, 10, 0, 10) };
-            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 380));
-            _root.Controls.Add(body, 0, 2);
+            _body = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Theme.Bg, Margin = new Padding(0, 10, 0, 10) };
+            _body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            _body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 300));
+            _root.Controls.Add(_body, 0, 2);
 
-            var tabs = BuildTabs();
-            tabs.Margin = new Padding(0, 0, 6, 0);
-            body.Controls.Add(tabs, 0, 0);
-            var tx = BuildTransmitColumn();
-            tx.Margin = new Padding(6, 0, 0, 0);
-            body.Controls.Add(tx, 1, 0);
+            _tabsCard = BuildTabs();
+            _tabsCard.Margin = new Padding(0, 0, 6, 0);
+            _body.Controls.Add(_tabsCard, 0, 0);
+            _txCard = BuildTransmitColumn();
+            _txCard.Margin = new Padding(6, 0, 0, 0);
+            _body.Controls.Add(_txCard, 1, 0);
 
             var logCard = Theme.Card();
+            _logCard = logCard;
             logCard.Dock = DockStyle.Fill;
             logCard.Padding = new Padding(10, 6, 10, 8);
             _log = new TextBox
@@ -163,10 +169,45 @@ namespace DatvTx.UI
         private void ShowSpectrum(bool show)
         {
             _s.ShowSpectrum = show;
-            _spectrumCard.Visible = show;
-            _root.RowStyles[1].Height = show ? 190 : 0;
+            _spectrumCard.Visible = show && !_compact;
+            _root.RowStyles[1].Height = show && !_compact ? 190 : 0;
             _btnSpectrum.Text = show ? "HIDE SPECTRUM" : "SPECTRUM";
             if (show) _spectrum.Start(); else _spectrum.Stop();
+        }
+
+        /// <summary>Compact mode: only the transmit panel, in a small window.</summary>
+        private void SetCompact(bool compact)
+        {
+            if (compact == _compact) return;
+            SuspendLayout();
+            if (compact)
+            {
+                if (WindowState == FormWindowState.Normal) { _s.NormalWidth = Width; _s.NormalHeight = Height; }
+            }
+            else if (WindowState == FormWindowState.Normal) { _s.CompactWidth = Width; _s.CompactHeight = Height; }
+
+            _compact = compact;
+            _s.CompactMode = compact;
+            _header.Visible = !compact;
+            _tabsCard.Visible = !compact;
+            _logCard.Visible = !compact;
+            _root.RowStyles[0].Height = compact ? 0 : 70;
+            _root.RowStyles[3].Height = compact ? 0 : 120;
+            _root.Padding = compact ? new Padding(4) : new Padding(12);
+            _body.Margin = compact ? new Padding(0) : new Padding(0, 10, 0, 10);
+            _body.ColumnStyles[0] = compact ? new ColumnStyle(SizeType.Absolute, 0) : new ColumnStyle(SizeType.Percent, 100);
+            _body.ColumnStyles[1] = compact ? new ColumnStyle(SizeType.Percent, 100) : new ColumnStyle(SizeType.Absolute, 300);
+            _txCard.Margin = compact ? new Padding(0) : new Padding(6, 0, 0, 0);
+            ShowSpectrum(_s.ShowSpectrum); // hides the spectrum card but keeps the feed (dBb) running
+            _btnCompact.Text = compact ? "FULL VIEW" : "COMPACT";
+            TopMost = compact && _s.CompactOnTop;
+
+            if (WindowState != FormWindowState.Normal) WindowState = FormWindowState.Normal;
+            MinimumSize = compact ? new Size(300, 560) : new Size(960, 820);
+            Size = compact ? new Size(Math.Max(300, _s.CompactWidth), Math.Max(560, _s.CompactHeight))
+                           : new Size(Math.Max(960, _s.NormalWidth), Math.Max(820, _s.NormalHeight));
+            ResumeLayout(true);
+            try { _s.Save(); } catch { }
         }
 
         private Panel BuildHeader()
@@ -486,11 +527,11 @@ namespace DatvTx.UI
         {
             var card = Theme.Card();
             card.Dock = DockStyle.Fill;
-            card.Padding = new Padding(14, 10, 8, 12);
+            card.Padding = new Padding(10, 8, 6, 10);
 
             var cols = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Theme.Surface };
             cols.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            cols.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 84));
+            cols.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 62));
 
             var stack = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, BackColor = Theme.Surface, Margin = new Padding(0) };
             int r = 0;
@@ -508,7 +549,7 @@ namespace DatvTx.UI
             for (int i = 0; i < 28; i++)
             {
                 double up = 2403.25 + i * 0.25;
-                _cmbFreq.Items.Add(string.Format(Inv, "{0:0.00}   ↓{1:0.00}", up, up + QoSpectrum.UplinkOffsetMHz));
+                _cmbFreq.Items.Add(up.ToString("0.00", Inv));
             }
             _cmbFreq.SelectionChangeCommitted += (s, e) => BeginInvoke((Action)(async () => await FrequencyCommitted()));
             _cmbFreq.KeyDown += async (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; await FrequencyCommitted(); } };
@@ -571,13 +612,24 @@ namespace DatvTx.UI
                 if (CanLive()) { _gainTimer.Stop(); _gainTimer.Start(); }
             };
             power.Controls.Add(_trkPower, 0, 1);
-            _lblPower = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Text, Font = Theme.Semi(9f), TextAlign = ContentAlignment.MiddleCenter, BackColor = Theme.Surface2 };
+            _lblPower = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Text, Font = Theme.Semi(8f), TextAlign = ContentAlignment.MiddleCenter, BackColor = Theme.Surface2 };
             power.Controls.Add(_lblPower, 0, 2);
 
             cols.Controls.Add(stack, 0, 0);
             cols.Controls.Add(power, 1, 0);
             card.Controls.Add(cols);
-            card.Controls.Add(Theme.CardTitle("TRANSMIT"));
+            var titleRow = new Panel { Dock = DockStyle.Top, Height = 32, BackColor = Theme.Surface };
+            var title = Theme.CardTitle("TRANSMIT");
+            title.Dock = DockStyle.Fill;
+            _btnCompact = Theme.Button("COMPACT");
+            _btnCompact.Dock = DockStyle.Right;
+            _btnCompact.Width = 84;
+            _btnCompact.Font = Theme.Semi(8f);
+            _btnCompact.Margin = new Padding(0);
+            _btnCompact.Click += (s, e) => SetCompact(!_compact);
+            titleRow.Controls.Add(title);
+            titleRow.Controls.Add(_btnCompact);
+            card.Controls.Add(titleRow);
             return card;
         }
 
@@ -1289,6 +1341,11 @@ namespace DatvTx.UI
                 await StopAsync("Stopped on exit.");
                 Close();
                 return;
+            }
+            if (WindowState == FormWindowState.Normal)
+            {
+                if (_compact) { _s.CompactWidth = Width; _s.CompactHeight = Height; }
+                else { _s.NormalWidth = Width; _s.NormalHeight = Height; }
             }
             try { _s.LastRun = ReadParams(); _s.Save(); } catch { }
             _uiTimer.Stop();

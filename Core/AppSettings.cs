@@ -190,6 +190,14 @@ namespace DatvTx.Core
         [Browsable(false)] public List<TxMemory> Memories { get; set; } = new List<TxMemory>();
         [Browsable(false)] public bool ShowSpectrum { get; set; } = true;
         [Browsable(false)] public int SettingsVersion { get; set; } = 0;
+        [Browsable(false)] public bool CompactMode { get; set; } = false;
+        [Browsable(false)] public int NormalWidth { get; set; } = 1060;
+        [Browsable(false)] public int NormalHeight { get; set; } = 900;
+        [Browsable(false)] public int CompactWidth { get; set; } = 320;
+        [Browsable(false)] public int CompactHeight { get; set; } = 660;
+
+        [Category("1 Station"), DisplayName("Compact window on top"), Description("Keep the compact transmit window above other windows (e.g. OBS).")]
+        public bool CompactOnTop { get; set; } = true;
 
         [Browsable(false), JsonIgnore]
         public string EffectiveCmdRoot
