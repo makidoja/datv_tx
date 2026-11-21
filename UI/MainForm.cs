@@ -1042,7 +1042,7 @@ namespace DatvTx.UI
             _btnPtt.Enabled = _running && _tx.SupportsPtt && !_busy;
             if (!_tx.SupportsPtt) { _btnPtt.Text = "PTT N/A"; Theme.Paint(_btnPtt, Theme.Surface2, Theme.Border); }
             else if (_ptt) { _btnPtt.Text = "ON AIR"; Theme.Paint(_btnPtt, Theme.Red, Theme.RedBorder); }
-            else { _btnPtt.Text = "PTT OFF"; Theme.Paint(_btnPtt, Theme.Surface2, Theme.Border); }
+            else { _btnPtt.Text = "PTT"; Theme.Paint(_btnPtt, Theme.Surface2, Theme.Border); }
 
             foreach (var c in _lockWhileRunning) c.Enabled = !_running && !_busy;
             _btnSettings.Enabled = !_running && !_busy;
