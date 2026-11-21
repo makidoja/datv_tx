@@ -114,7 +114,7 @@ namespace DatvTx.UI
         {
             _root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(12), BackColor = Theme.Bg };
             _root.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
-            _root.RowStyles.Add(new RowStyle(SizeType.Absolute, 190));
+            _root.RowStyles.Add(new RowStyle(SizeType.Absolute, 200));
             _root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             _root.RowStyles.Add(new RowStyle(SizeType.Absolute, 120));
             Controls.Add(_root);
@@ -170,7 +170,7 @@ namespace DatvTx.UI
         {
             _s.ShowSpectrum = show;
             _spectrumCard.Visible = show && !_compact;
-            _root.RowStyles[1].Height = show && !_compact ? 190 : 0;
+            _root.RowStyles[1].Height = show && !_compact ? 200 : 0;
             _btnSpectrum.Text = show ? "HIDE SPECTRUM" : "SPECTRUM";
             if (show) _spectrum.Start(); else _spectrum.Stop();
         }

@@ -50,7 +50,7 @@ namespace DatvTx.UI
         private bool _onAir;
 
         private const int RowHeight = 9;
-        private const int Rows = 3;
+        private const int Rows = 4;
 
         public QoSpectrum()
         {
@@ -58,10 +58,13 @@ namespace DatvTx.UI
             BackColor = Theme.Surface;
             Cursor = Cursors.Hand;
 
-            // Channel plan (from DATV-NotSoEasy frequency.ini / BATC wideband plan)
-            _slots.Add(new Slot { Centre = 10491.50, Sr = 1500, Row = 2 }); // beacon
+            // BATC QO-100 WB band plan V3: row 0 very narrow (125/66/33 kS, 250 kHz spacing),
+            // row 1 narrow 333/250 kS (ch 1-14), row 2 narrow 500 kS (ch 1-9 only), row 3 wide 1 MS + beacon.
+            _slots.Add(new Slot { Centre = 10491.50, Sr = 1500, Row = 3 }); // beacon
             foreach (double f in new[] { 10493.25, 10494.75, 10496.25 })
-                _slots.Add(new Slot { Centre = f, Sr = 1000, Row = 2 });
+                _slots.Add(new Slot { Centre = f, Sr = 1000, Row = 3 });
+            for (double f = 10492.75; f <= 10496.75 + 1e-6; f += 0.5)
+                _slots.Add(new Slot { Centre = f, Sr = 500, Row = 2 });
             for (double f = 10492.75; f <= 10499.25 + 1e-6; f += 0.5)
                 _slots.Add(new Slot { Centre = f, Sr = 333, Row = 1 });
             for (double f = 10492.75; f <= 10499.25 + 1e-6; f += 0.25)
@@ -221,7 +224,7 @@ namespace DatvTx.UI
         {
             var row = RowRect(s.Row);
             double bw = s.Sr / 1000.0 * 1.2;          // occupied bandwidth
-            double pitch = s.Row == 0 ? 0.25 : s.Row == 1 ? 0.5 : bw;
+            double pitch = s.Row == 0 ? 0.25 : (s.Row == 1 || s.Row == 2) ? 0.5 : bw;
             double w = Math.Min(bw, pitch) - 0.04;
             float x0 = X(s.Centre - w / 2), x1 = X(s.Centre + w / 2);
             return new RectangleF(x0, row.Top, Math.Max(2, x1 - x0), row.Height);

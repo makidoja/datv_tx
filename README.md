@@ -43,7 +43,7 @@ stay under 85% of full scale in every mode. **First RF test: use a dummy load an
 2. **SOURCE & ENCODER**: choose OBS Virtual Camera (or any capture device) plus an audio device, a UDP or RTMP
    stream, or a video file. Press ↻ to rescan the devices.
 3. **DVB tab**: set the mode, SR, FEC and the video/audio settings. The target TS and video bitrates update as you change them.
-   **QO-100 spectrum**: the BATC wideband spectrum is shown live. Click a channel block (125 KS, 333 KS or 1 MS rows)
+   **QO-100 spectrum**: the BATC wideband spectrum is shown live. Click a channel block (125 KS, 333 KS, 500 KS or 1 MS rows, per the BATC band plan)
    to set the TX frequency and symbol rate, or click the trace to pick the nearest 250 kHz channel.
    The dashed line is the beacon level (0 dBb). Your signal's level relative to the beacon is shown in dBb
    on the spectrum and in the transmit column: green below −1 dBb, amber within 1 dB, red at or above the
