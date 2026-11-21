@@ -4,6 +4,10 @@
 frequency, power and PTT live. Found automatically on its COM port. *Untested on a real Muntjac yet.*
 **Fixed in 0.1.2:** NVIDIA NVENC on older or Studio drivers ("Required: 13.1 Found: 12.2"). NVENC now
 uses a bundled FFmpeg 7.1 (NVENC API 11.1, driver 470 or newer). Everything else still uses the current FFmpeg.
+**Fixed in 0.1.2:** webcams such as the Logitech C922 with GPU encoders ("YUV422P not supported"): the
+picture is now always converted to 4:2:0, which DATV receivers expect anyway.
+**New in 0.1.2:** a log file for each day in `%AppData%\DatvTx\logs` (OPEN LOG FOLDER on the STATUS tab), and
+a clearer message when another program is using the camera.
 
 ### Earlier
 
