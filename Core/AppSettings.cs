@@ -198,7 +198,7 @@ namespace DatvTx.Core
         [Category("7 Transport stream"), DisplayName("Max delay (ms)")] public int MaxDelayMs { get; set; } = 2000;
         [Category("7 Transport stream"), DisplayName("Max interleave (s)")] public int MaxInterleaveS { get; set; } = 4;
         [Category("7 Transport stream"), DisplayName("Buffer factor")] public double BufFactor { get; set; } = 1;
-        [Category("7 Transport stream"), DisplayName("Thread queue (K)")] public int ThreadQueueK { get; set; } = 10;
+        [Browsable(false)] public int ThreadQueueK { get; set; } = 10;
         [Category("7 Transport stream"), DisplayName("UDP FIFO buffer (M)")] public int FifoBufMb { get; set; } = 50;
 
         // ---------------- Not shown in the grid ----------------

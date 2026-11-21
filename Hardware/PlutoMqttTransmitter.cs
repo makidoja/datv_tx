@@ -21,6 +21,7 @@ namespace DatvTx.Hardware
         private readonly ConcurrentDictionary<string, string> _latest = new ConcurrentDictionary<string, string>();
         private TaskCompletionSource<string> _bitrateWaiter;
         private bool _longmyndOn;
+        private bool _wasConnected;
 
         public PlutoMqttTransmitter(AppSettings s) : base(s) { }
 
@@ -54,6 +55,8 @@ namespace DatvTx.Hardware
             _client.ApplicationMessageReceivedAsync += OnMessage;
             _client.DisconnectedAsync += e =>
             {
+                if (!_wasConnected) return Task.FromResult(0);
+                _wasConnected = false;
                 RaiseLog("Pluto MQTT disconnected.");
                 RaiseConnectionChanged();
                 return Task.FromResult(0);
@@ -63,13 +66,21 @@ namespace DatvTx.Hardware
                 .WithTcpServer(Settings.PlutoIp, Settings.PlutoMqttPort)
                 .WithClientId("DatvTx-" + Guid.NewGuid().ToString("N").Substring(0, 8))
                 .WithCleanSession()
-                .WithTimeout(TimeSpan.FromSeconds(5))
+                .WithTimeout(TimeSpan.FromSeconds(10))
                 .Build();
 
-            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(6)))
+            try
             {
-                await _client.ConnectAsync(options, cts.Token);
+                using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                {
+                    await _client.ConnectAsync(options, cts.Token);
+                }
             }
+            catch (OperationCanceledException)
+            {
+                throw new TimeoutException("the Pluto did not answer within 10 s. Is it powered up (it takes about 30 s to boot) and is the IP address right?");
+            }
+            _wasConnected = true;
             await _client.SubscribeAsync("dt/#");
             RaiseLog("Connected to Pluto MQTT at " + Settings.PlutoIp + ".");
             RaiseConnectionChanged();

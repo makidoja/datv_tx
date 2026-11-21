@@ -27,22 +27,24 @@ namespace DatvTx.Core
             a.Add("-itsoffset " + N(s.AudioOffset));
 
             // ---- input
-            string tq = "-thread_queue_size " + s.ThreadQueueK + "K -rtbufsize " + s.RtBufMb + "M";
+            // Current FFmpeg (7.x/8.x) no longer accepts -thread_queue_size on inputs, so only the
+            // DirectShow real-time buffer is set here.
+            string rtbuf = "-rtbufsize " + s.RtBufMb + "M";
             switch (p.Input)
             {
                 case InputType.Capture:
-                    a.Add("-f dshow " + tq + " -i " + Q("video=" + p.VideoDevice));
+                    a.Add("-f dshow " + rtbuf + " -i " + Q("video=" + p.VideoDevice));
                     if (!string.IsNullOrWhiteSpace(p.AudioDevice))
-                        a.Add("-f dshow " + tq + " -i " + Q("audio=" + p.AudioDevice));
+                        a.Add("-f dshow " + rtbuf + " -i " + Q("audio=" + p.AudioDevice));
                     break;
                 case InputType.NetworkUdp:
-                    a.Add(tq + " -i " + Q(s.InputUdp));
+                    a.Add("-i " + Q(s.InputUdp));
                     break;
                 case InputType.NetworkRtmp:
-                    a.Add("-f flv -listen 1 " + tq + " -i " + Q(s.InputRtmp));
+                    a.Add("-f flv -listen 1 -i " + Q(s.InputRtmp));
                     break;
                 case InputType.File:
-                    a.Add("-re -stream_loop " + s.FileLoop + " " + tq + " -i " + Q(p.InputFile));
+                    a.Add("-re -stream_loop " + s.FileLoop + " -i " + Q(p.InputFile));
                     break;
             }
 

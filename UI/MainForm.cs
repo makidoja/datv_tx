@@ -769,7 +769,11 @@ namespace DatvTx.UI
                     string args = FfmpegBuilder.BuildArgs(p, _s, plan, url);
                     AppendLog("ffmpeg " + args);
                     _ffmpeg.Start(_s.FfmpegExe, args);
-                    AppendLog("Encoder started -> " + url);
+                    // Most ffmpeg problems (device busy, bad option) make it exit straight away.
+                    await Task.Delay(2000);
+                    if (!_ffmpeg.IsRunning)
+                        throw new InvalidOperationException("the encoder stopped straight away - see the ffmpeg message above.");
+                    AppendLog("Encoder running -> " + url);
                 }
                 else
                 {
