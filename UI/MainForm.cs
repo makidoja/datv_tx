@@ -60,6 +60,8 @@ namespace DatvTx.UI
         private TextBox _txtMemName;
 
         // transmit column
+        private double _dbb = double.NaN;
+        private Label _lblDbb;
         private Label _lblDownlink, _lblSummary, _lblStats, _lblStatus, _lblPower;
         private TrafficLight _light;
         private TrackBar _trkPower;
@@ -121,6 +123,7 @@ namespace DatvTx.UI
             _spectrumCard.Padding = new Padding(6, 4, 6, 4);
             _spectrum = new QoSpectrum { Dock = DockStyle.Fill };
             _spectrum.ChannelPicked += (down, sr) => BeginInvoke((Action)(async () => await ChannelPicked(down, sr)));
+            _spectrum.LevelUpdated += v => { _dbb = v; ShowDbb(); };
             var specTitle = new Label { Text = "QO-100 WIDEBAND  •  BATC live spectrum  •  click a channel to set the TX frequency", Dock = DockStyle.Top, Height = 20, ForeColor = Theme.Muted, Font = Theme.Semi(8.5f), Padding = new Padding(6, 0, 0, 0) };
             _spectrumCard.Controls.Add(_spectrum);
             _spectrumCard.Controls.Add(specTitle);
@@ -515,6 +518,9 @@ namespace DatvTx.UI
             _lblDownlink = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Ui(9f), TextAlign = ContentAlignment.TopLeft };
             add(_lblDownlink, 22);
 
+            _lblDbb = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Semi(10f), TextAlign = ContentAlignment.MiddleLeft, BackColor = Theme.Surface2, Padding = new Padding(6, 0, 0, 0), Margin = new Padding(0, 2, 0, 2) };
+            add(_lblDbb, 28);
+
             add(new Label { Text = "TRANSMISSION", Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Semi(8.5f), TextAlign = ContentAlignment.BottomLeft }, 22);
             _light = new TrafficLight { Dock = DockStyle.Fill };
             add(_light, 84);
@@ -525,12 +531,12 @@ namespace DatvTx.UI
             _btnStart = Theme.Button("START", true);
             _btnStart.Dock = DockStyle.Fill; _btnStart.Font = Theme.Semi(13f); _btnStart.Margin = new Padding(0, 4, 0, 4);
             _btnStart.Click += async (s, e) => await StartStopAsync();
-            add(_btnStart, 60);
+            add(_btnStart, 54);
 
             _btnPtt = Theme.Button("PTT");
             _btnPtt.Dock = DockStyle.Fill; _btnPtt.Font = Theme.Semi(13f); _btnPtt.Margin = new Padding(0, 4, 0, 4);
             _btnPtt.Click += async (s, e) => await TogglePttAsync();
-            add(_btnPtt, 60);
+            add(_btnPtt, 54);
 
             _btnMonitor = Theme.Button("MONITOR STREAM");
             _btnMonitor.Dock = DockStyle.Fill; _btnMonitor.Margin = new Padding(0, 4, 0, 4);
@@ -1189,6 +1195,22 @@ namespace DatvTx.UI
 
         // ================================================================== misc
 
+        private void ShowDbb()
+        {
+            if (_lblDbb == null) return;
+            bool onAir = _running && _ptt;
+            if (!_s.ShowSpectrum) { _lblDbb.Text = "QO-100 level: spectrum hidden"; _lblDbb.ForeColor = Theme.Muted; return; }
+            if (double.IsNaN(_dbb))
+            {
+                _lblDbb.Text = onAir ? "QO-100 level: not seen yet" : "QO-100 level vs beacon: -";
+                _lblDbb.ForeColor = Theme.Muted;
+                return;
+            }
+            string v = (_dbb >= 0 ? "+" : "") + _dbb.ToString("0.0", Inv) + " dBb";
+            _lblDbb.Text = (onAir ? "Your signal  " : "Channel  ") + v + (_dbb >= 0 ? "   ABOVE BEACON" : "");
+            _lblDbb.ForeColor = onAir ? QoSpectrum.DbbColour(_dbb) : Theme.Muted;
+        }
+
         private void UpdateDownlink(double uplinkMHz)
         {
             double down = uplinkMHz + QoSpectrum.UplinkOffsetMHz;
@@ -1216,7 +1238,10 @@ namespace DatvTx.UI
                 _lastUnderruns = underruns;
             }
             else _lastUnderruns = -1;
+            if (_running && _ptt && !double.IsNaN(_dbb) && _dbb >= 0)
+                warn = "Above the QO-100 beacon (" + (_dbb >= 0 ? "+" : "") + _dbb.ToString("0.0", Inv) + " dBb) - reduce power";
             _light.SetWarning(warn != null, warn);
+            ShowDbb();
             _light.Tick();
 
             // spectrum marker

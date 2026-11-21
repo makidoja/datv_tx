@@ -26,6 +26,16 @@ namespace DatvTx.UI
         /// <summary>Raised with the downlink centre (MHz) and symbol rate (KS, 0 = keep current).</summary>
         public event Action<double, int> ChannelPicked;
 
+        /// <summary>
+        /// Level of the transmit channel relative to the beacon in dB (dBb), or NaN when there is no
+        /// beacon reference or nothing above the noise on the channel. Raised on the UI thread per frame.
+        /// </summary>
+        public event Action<double> LevelUpdated;
+
+        // BATC feed scaling: 3276.8 FFT units per dB (as used by the BATC/OpenTuner detector).
+        private const double UnitsPerDb = 3276.8;
+        private double _beaconLevel = double.NaN, _txLevel = double.NaN, _dbb = double.NaN;
+
         private struct Slot { public double Centre; public int Sr; public int Row; }
         private readonly List<Slot> _slots = new List<Slot>();
 
@@ -117,6 +127,7 @@ namespace DatvTx.UI
                                 for (int i = 0; i < data.Length; i++)
                                     data[i] = (ushort)(frame[2 * i] | (frame[2 * i + 1] << 8));
                                 lock (_sync) { _fft = data; _lastFrame = DateTime.Now; }
+                                Measure(data);
                                 SafeInvalidate();
                             }
                         }
@@ -129,6 +140,58 @@ namespace DatvTx.UI
         }
 
         private void SetStatus(string s) { _status = s; SafeInvalidate(); }
+
+        public double Dbb { get { return _dbb; } }
+
+        private static int Bin(ushort[] d, double mhz)
+        {
+            int i = (int)Math.Round((mhz - StartMHz) / SpanMHz * (d.Length - 1));
+            return Math.Max(0, Math.Min(d.Length - 1, i));
+        }
+
+        /// <summary>Mean FFT level over the central part of a signal (the flat top).</summary>
+        private static double TopLevel(ushort[] d, double centreMHz, double widthMHz)
+        {
+            int a = Bin(d, centreMHz - widthMHz / 2), b = Bin(d, centreMHz + widthMHz / 2);
+            if (b < a) { int t = a; a = b; b = t; }
+            double sum = 0; int n = 0;
+            for (int i = a; i <= b; i++) { sum += d[i]; n++; }
+            return n > 0 ? sum / n : double.NaN;
+        }
+
+        private void Measure(ushort[] d)
+        {
+            // Beacon: 1.5 MS at 10491.5 MHz; use the middle 0.6 MHz of its flat top.
+            double beacon = TopLevel(d, 10491.5, 0.6);
+
+            // Noise floor: 20th percentile of the whole span.
+            var sorted = (ushort[])d.Clone();
+            Array.Sort(sorted);
+            double noise = sorted[sorted.Length / 5];
+
+            double dbb = double.NaN;
+            double tx = double.NaN;
+            if (!double.IsNaN(_txDownlinkMHz) && _txSr > 0)
+            {
+                // middle half of the occupied bandwidth (at least ~3 bins)
+                double width = Math.Max(_txSr / 1000.0 * 0.5, 3 * SpanMHz / d.Length);
+                tx = TopLevel(d, _txDownlinkMHz, width);
+                bool beaconOk = beacon > noise + 3 * UnitsPerDb;
+                bool txVisible = tx > noise + 1.0 * UnitsPerDb;
+                if (beaconOk && txVisible) dbb = (tx - beacon) / UnitsPerDb;
+            }
+
+            // light smoothing so the readout is steady while adjusting power
+            if (double.IsNaN(dbb)) _dbb = double.NaN;
+            else _dbb = double.IsNaN(_dbb) ? dbb : _dbb * 0.6 + dbb * 0.4;
+            _beaconLevel = beacon;
+            _txLevel = tx;
+
+            var h = LevelUpdated;
+            double v = _dbb;
+            if (h != null)
+                try { if (IsHandleCreated && !IsDisposed) BeginInvoke((MethodInvoker)(() => h(v))); } catch { }
+        }
 
         private void SafeInvalidate()
         {
@@ -229,6 +292,35 @@ namespace DatvTx.UI
                 using (var f = Theme.Semi(9f))
                     TextRenderer.DrawText(g, _status ?? "BATC wideband spectrum - waiting for data...", f, new Point(plot.Left + 10, plot.Top + 8), Theme.Muted);
 
+            // beacon (0 dBb) reference line and the transmit level
+            if (fft != null && !double.IsNaN(_beaconLevel))
+            {
+                float yb = LevelY(plot, _beaconLevel);
+                using (var p = new Pen(Color.FromArgb(200, 255, 255, 255), 1f) { DashStyle = DashStyle.Dash })
+                    g.DrawLine(p, plot.Left, yb, plot.Right, yb);
+                using (var f = Theme.Ui(7.5f))
+                    TextRenderer.DrawText(g, "beacon 0 dBb", f, new Point(plot.Right - 72, (int)yb - 14), Color.FromArgb(220, 255, 255, 255));
+            }
+            if (!double.IsNaN(_dbb))
+            {
+                Color lc = DbbColour(_dbb);
+                string txt = (_onAir ? "TX  " : "channel  ") + (_dbb >= 0 ? "+" : "") + _dbb.ToString("0.0", CultureInfo.InvariantCulture) + " dBb";
+                using (var f = Theme.Semi(13f))
+                {
+                    var sz = TextRenderer.MeasureText(txt, f);
+                    var box = new Rectangle(plot.Right - sz.Width - 14, plot.Top + 4, sz.Width + 10, sz.Height + 2);
+                    using (var b = new SolidBrush(Color.FromArgb(200, 13, 28, 45))) g.FillRectangle(b, box);
+                    TextRenderer.DrawText(g, txt, f, new Point(box.X + 5, box.Y + 1), lc);
+                }
+                if (!double.IsNaN(_txLevel))
+                    using (var p = new Pen(lc, 1.5f))
+                    {
+                        float y = LevelY(plot, _txLevel);
+                        double bw = Math.Max(0.03, _txSr / 1000.0 * 1.2);
+                        g.DrawLine(p, X(_txDownlinkMHz - bw / 2), y, X(_txDownlinkMHz + bw / 2), y);
+                    }
+            }
+
             // transmit marker
             if (!double.IsNaN(_txDownlinkMHz))
             {
@@ -276,6 +368,19 @@ namespace DatvTx.UI
                         TextRenderer.DrawText(g, text, f, new Point(box.X + 4, box.Y + 2), Theme.Text);
                     }
             }
+        }
+
+        public static Color DbbColour(double dbb)
+        {
+            if (dbb >= 0) return Color.FromArgb(255, 80, 80);
+            if (dbb > -1) return Theme.Amber;
+            return Theme.Green;
+        }
+
+        private static float LevelY(Rectangle plot, double level)
+        {
+            float n = (float)Math.Max(0, Math.Min(1, level / 65535.0 * 1.55));
+            return plot.Bottom - n * plot.Height;
         }
 
         private void DrawTrace(Graphics g, Rectangle plot, ushort[] data)

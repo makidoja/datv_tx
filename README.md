@@ -45,6 +45,10 @@ stay under 85% of full scale in every mode. **First RF test: use a dummy load an
 3. **DVB tab**: set the mode, SR, FEC and the video/audio settings. The target TS and video bitrates update as you change them.
    **QO-100 spectrum**: the BATC wideband spectrum is shown live. Click a channel block (125 KS, 333 KS or 1 MS rows)
    to set the TX frequency and symbol rate, or click the trace to pick the nearest 250 kHz channel.
+   The dashed line is the beacon level (0 dBb). Your signal's level relative to the beacon is shown in dBb
+   on the spectrum and in the transmit column: green below −1 dBb, amber within 1 dB, red at or above the
+   beacon. The traffic light warns if you're above the beacon. (Same 3276.8 FFT units per dB as the BATC
+   spectrum/OpenTuner; it's power density, not MER.)
    Set the power with the slider (−50 to 0 dB). You can set a lower ceiling in Settings → Power limit to protect a PA.
 4. **START** starts the encoder with the carrier muted (amber light: STANDBY). Press **PTT** to go on air
    (red light: ON AIR). Power, frequency, roll-off and digital gain can be changed live.
