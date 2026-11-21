@@ -47,7 +47,7 @@ static bool Bind(LibHandle h, const char *sym, T &fn, std::string &err)
 
 bool LimeApi::Load(const std::vector<std::string> &dirs, std::string &err)
 {
-    LibHandle h = OpenLib(dirs, {"LimeSuite.dll", "libLimeSuite.so", "libLimeSuite.so.23.11-1", "libLimeSuite.so.20.10-1"}, err);
+    LibHandle h = OpenLib(dirs, {"LimeSuite.dll", "libLimeSuite.dll", "libLimeSuite.so", "libLimeSuite.so.23.11-1", "libLimeSuite.so.20.10-1"}, err);
     if (!h) return false;
     return Bind(h, "LMS_GetDeviceList", GetDeviceList, err) && Bind(h, "LMS_Open", Open, err) &&
            Bind(h, "LMS_Close", Close, err) && Bind(h, "LMS_Init", Init, err) &&
