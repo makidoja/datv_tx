@@ -70,6 +70,7 @@ jobs:
           Write-Host $o
           if ($o -match 'could not load') { throw 'datvtx_mod could not load the bundled hackrf DLL' }
           if ($o -notmatch 'no HackRF found') { throw 'unexpected modulator output' }
+          exit 0
 
       - name: Add FFmpeg (BtbN GPL build)
         shell: pwsh
