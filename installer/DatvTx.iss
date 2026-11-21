@@ -1,5 +1,7 @@
 #define MyAppName "DATV TX (M0CKE)"
-#define MyAppVersion "0.1.0"
+#ifndef MyAppVersion
+  #define MyAppVersion "0.1.0-dev"
+#endif
 #define MyAppPublisher "M0CKE"
 #define MyAppExeName "DatvTx.exe"
 
@@ -32,6 +34,7 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription
 [Files]
 Source: "..\out\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\RELEASE_NOTES.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"

@@ -220,7 +220,7 @@ namespace DatvTx.UI
             p.Margin = new Padding(S(0));
 
             var title = new Label { Text = "◉  " + ProductTitle, AutoSize = true, Location = new Point(S(16), S(8)), ForeColor = Theme.Text, Font = Theme.Semi(14f) };
-            var credit = new Label { Text = "based on DATV-NotSoEasy by DL5OCD", AutoSize = true, Location = new Point(S(20), S(42)), ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
+            var credit = new Label { Text = "v" + Application.ProductVersion + "  •  based on DATV-NotSoEasy by DL5OCD", AutoSize = true, Location = new Point(S(20), S(42)), ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
             _lblHardware = new Label { AutoSize = true, Location = new Point(S(330), S(12)), ForeColor = Theme.Text, Font = Theme.Semi(10f) };
             _lblHelp = new Label { AutoSize = false, Location = new Point(S(330), S(34)), Size = new Size(S(400), S(32)), ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
 
