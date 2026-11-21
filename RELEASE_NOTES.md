@@ -1,7 +1,7 @@
 ## DATV TX (M0CKE) v0.1.2 beta
 
 **New in 0.1.2:** BATC **Muntjac** (70 cm / 13 cm) support over USB: DVB-S2 QPSK/8PSK, 125–1000 KS,
-frequency, power and PTT live. Found automatically on its COM port. *Tested on air.*
+frequency, power and PTT live. Found automatically on its COM port. *Tested on air on 70 cm and QO-100 (13 cm), 125 and 500 KS.*
 **Fixed in 0.1.2:** NVIDIA NVENC on older or Studio drivers ("Required: 13.1 Found: 12.2"). NVENC now
 uses a bundled FFmpeg 7.1 (NVENC API 11.1, driver 470 or newer). Everything else still uses the current FFmpeg.
 **Fixed in 0.1.2:** webcams such as the Logitech C922 with GPU encoders ("YUV422P not supported"): the
@@ -31,7 +31,7 @@ Both include FFmpeg (x264, x265, H.266 VVC, AV1, NVENC, AMD AMF, Intel QSV), the
 - **ADALM-Pluto, older F5OEO firmware**: the app sends the stream; you set up the radio in its web page.
 - **LimeSDR Mini / HackRF One**: built-in DVB-S/S2 modulator (`datvtx_mod.exe`, F5OEO libdvbmod)
   with RRC shaping. Frequency, power and PTT change live. *Not yet tested on air.*
-- **BATC Muntjac** (70 cm / 13 cm): DVB-S2 via USB serial; the app finds the COM port itself. *Tested on air.*
+- **BATC Muntjac** (70 cm / 13 cm): DVB-S2 via USB serial; the app finds the COM port itself. *Tested on air on 70 cm and QO-100 (13 cm), 125 and 500 KS.*
 - **Local test**: encode to a local stream and watch it, with no radio.
 
 ### Features

@@ -1,6 +1,7 @@
 name: Update v0.1.2-beta release notes
 
 # Committing this file replaces the v0.1.2-beta release notes with RELEASE_NOTES.md.
+# Rev 2: Muntjac test details.
 on:
   push:
     branches: [ main ]

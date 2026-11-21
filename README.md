@@ -77,7 +77,7 @@ the driver itself. The app finds it automatically (USB 2E8A:000A), or you can se
 Settings → *Muntjac COM port*. Limits: DVB-S2 only, QPSK or 8PSK, 125 / 250 / 333 / 500 / 1000 KS (no 8PSK
 at 1000 KS), 389.5–510, 770–1030 and 2390–2490 MHz. The power slider's 0 dB = Muntjac power 0.20, the
 DATV maximum G4EWJ recommends. For carrier/LO calibration, copy your `<serial>.mjo` file from the
-Portsdown into `%AppData%\DatvTx`; otherwise it uses the internal default. **Tested on air.**
+Portsdown into `%AppData%\DatvTx`; otherwise it uses the internal default. **Tested on air on 70 cm and QO-100 (13 cm), 125 and 500 KS.**
 
 ## Credits and licences
 - DATV-NotSoEasy by DL5OCD: the original logic and parameters.
