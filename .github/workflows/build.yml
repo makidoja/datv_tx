@@ -3,8 +3,14 @@ name: Windows build
 on:
   push:
     branches: [ main ]
-    tags: [ 'v*' ]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      release_tag:
+        description: 'Create a GitHub release with this tag (e.g. v0.1.0-beta)'
+        type: string
+        required: false
+        default: 
 
 permissions:
   contents: write
@@ -146,7 +152,8 @@ jobs:
         run: |
           choco install innosetup --no-progress -y
           $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
-          $ver = if ($env:GITHUB_REF -like 'refs/tags/v*') { $env:GITHUB_REF_NAME.Substring(1) } else { '0.1.0-dev' }
+          $tag = '${{ inputs.release_tag }}'
+          $ver = if ($tag -like 'v*') { $tag.Substring(1) } else { '0.1.0-dev' }
           & $iscc "/DMyAppVersion=$ver" 'installer\DatvTx.iss'
           if ($LASTEXITCODE -ne 0) { throw 'Inno Setup failed' }
 
@@ -156,17 +163,18 @@ jobs:
           name: DatvTx-Windows-Installer
           path: installer-output/*.exe
 
-      - name: Publish GitHub release (version tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Publish GitHub release
+        if: inputs.release_tag != ''
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = $env:GITHUB_REF_NAME
+          $tag = '${{ inputs.release_tag }}'
           $ver = $tag.Substring(1)
           $zip = "installer-output/DatvTx-M0CKE-$ver-portable.zip"
           Compress-Archive -Path 'out/*' -DestinationPath $zip -Force
           $setup = Get-ChildItem 'installer-output/*.exe' | Select-Object -First 1
-          $pre = if ($ver -match '-(alpha|beta|rc)') { '--prerelease' } else { '' }
-          gh release create $tag $setup.FullName $zip --title "DATV TX (M0CKE) $tag" --notes-file RELEASE_NOTES.md $pre
+          $args = @('release', 'create', $tag, $setup.FullName, $zip, '--target', $env:GITHUB_SHA, '--title', "DATV TX (M0CKE) $tag", '--notes-file', 'RELEASE_NOTES.md')
+          if ($ver -match '-(alpha|beta|rc)') { $args += '--prerelease' }
+          gh @args
           if ($LASTEXITCODE -ne 0) { throw 'release failed' }
