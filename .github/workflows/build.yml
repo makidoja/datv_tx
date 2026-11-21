@@ -69,7 +69,7 @@ jobs:
           $src = Join-Path $env:RUNNER_TEMP 'LimeSuite'
           $bld = Join-Path $env:RUNNER_TEMP 'ls-build'
           git clone --depth 1 --branch v23.11.0 https://github.com/myriadrf/LimeSuite $src
-          cmake -S $src -B $bld -G "Visual Studio 17 2022" -A x64 -DENABLE_GUI=OFF -DENABLE_SOAPY_LMS7=OFF -DENABLE_OCTAVE=OFF -DENABLE_EXAMPLES=OFF -DENABLE_QUICKTEST=OFF -DENABLE_DESKTOP=OFF -DENABLE_API_DOXYGEN=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake -S $src -B $bld -A x64 '-DENABLE_GUI=OFF' '-DENABLE_SOAPY_LMS7=OFF' '-DENABLE_OCTAVE=OFF' '-DENABLE_EXAMPLES=OFF' '-DENABLE_QUICKTEST=OFF' '-DENABLE_DESKTOP=OFF' '-DENABLE_API_DOXYGEN=OFF' '-DCMAKE_POLICY_VERSION_MINIMUM=3.5'
           if ($LASTEXITCODE -ne 0) { throw 'LimeSuite configure failed' }
           cmake --build $bld --config Release --target LimeSuite --parallel
           if ($LASTEXITCODE -ne 0) { throw 'LimeSuite build failed' }
