@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -73,6 +74,10 @@ namespace DatvTx.Core
             a.Add("-ar " + AudioRate(p, s));
             a.Add("-vcodec " + p.Codec);
             a.Add("-s " + p.ImageSize);
+            // Webcams often deliver MJPEG/YUY2 (4:2:2). GPU encoders reject 4:2:2 and DATV receivers
+            // expect 4:2:0, so always convert. VVC picks its own 10-bit format.
+            if (p.Codec.EndsWith("_qsv", StringComparison.Ordinal)) a.Add("-pix_fmt nv12");
+            else if (p.Codec != "libvvenc") a.Add("-pix_fmt yuv420p");
             a.Add("-b:v " + N(e.VideoBitrateK) + "K");
 
             string fps = N(p.Fps);

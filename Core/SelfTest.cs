@@ -29,7 +29,7 @@ namespace DatvTx.Core
                     var p = new TxParams { Codec = codec, SymbolRateKs = sr, Fec = "2/3", Fps = 25, ImageSize = sr < 250 ? "640x360" : "1280x720", AudioBitrateK = 16 };
                     var plan = EncodePlan.Build(p, s, DvbCalc.TsBitrateK(p), false);
                     string outFile = Path.Combine(tmp, codec + "-" + sr + (Codecs.IsAv1(codec) ? ".nut" : ".ts"));
-                    string input = "-f lavfi -i testsrc2=size=1280x720:rate=30 -f lavfi -i sine=frequency=1000:sample_rate=44100";
+                    string input = "-f lavfi -i testsrc2=size=1280x720:rate=30,format=yuvj422p -f lavfi -i sine=frequency=1000:sample_rate=44100";
                     string args = FfmpegBuilder.BuildArgs(p, s, plan, outFile, input, "-t 3 -y");
                     string output;
                     int code = RunFfmpeg(s.FfmpegExe, args, 180000, out output);

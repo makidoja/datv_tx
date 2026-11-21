@@ -107,6 +107,10 @@ namespace DatvTx.UI
                     AppendLog(">> Your NVIDIA driver is older than this FFmpeg needs. Update the driver, or set Settings → FFmpeg folder to another FFmpeg build.");
                 else if (l.IndexOf("Cannot load nvcuda", StringComparison.OrdinalIgnoreCase) >= 0 || l.IndexOf("No capable devices found", StringComparison.OrdinalIgnoreCase) >= 0)
                     AppendLog(">> No usable NVIDIA GPU found - choose a CPU or other GPU codec.");
+                else if (l.IndexOf("Could not run graph", StringComparison.OrdinalIgnoreCase) >= 0)
+                    AppendLog(">> Windows could not open the camera. Usually another program has it (OBS, Teams, Zoom, the Camera app or a browser tab): close it, or in OBS use Start Virtual Camera and choose OBS Virtual Camera here. Unplugging and replugging the camera also helps.");
+                else if (l.IndexOf("not supported", StringComparison.OrdinalIgnoreCase) >= 0 && (l.IndexOf("YUV", StringComparison.OrdinalIgnoreCase) >= 0 || l.IndexOf("pixel format", StringComparison.OrdinalIgnoreCase) >= 0))
+                    AppendLog(">> The camera's picture format isn't accepted by this encoder - try a CPU codec (libx265/libx264).");
                 else if (l.IndexOf("amf", StringComparison.OrdinalIgnoreCase) >= 0 && l.IndexOf("Failed", StringComparison.OrdinalIgnoreCase) >= 0)
                     AppendLog(">> AMD encoder failed - check the AMD graphics driver is installed, or choose a CPU codec.");
             });
@@ -539,6 +543,13 @@ namespace DatvTx.UI
             var page = new Panel { BackColor = Theme.Surface };
             _lblStatus = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = new Font("Consolas", 9f), TextAlign = ContentAlignment.TopLeft, Text = "No radio status yet." };
             page.Controls.Add(_lblStatus);
+            var logBtn = Theme.Button("OPEN LOG FOLDER");
+            logBtn.Dock = DockStyle.Bottom; logBtn.Height = S(28);
+            logBtn.Click += (o, e) =>
+            {
+                try { Directory.CreateDirectory(LogFolder); Process.Start("explorer.exe", "\"" + LogFolder + "\""); } catch { }
+            };
+            page.Controls.Add(logBtn);
             page.Controls.Add(GroupTitle("RADIO / MODULATOR STATUS"));
             return page;
         }
@@ -1364,6 +1375,34 @@ namespace DatvTx.UI
             if (_log == null) return;
             if (_log.TextLength > 60000) _log.Text = _log.Text.Substring(_log.TextLength - 30000);
             _log.AppendText(DateTime.Now.ToString("HH:mm:ss ") + line + Environment.NewLine);
+            WriteLogFile(line);
+        }
+
+        /// <summary>Folder with one log file per day (%AppData%\DatvTx\logs), kept for 14 days.</summary>
+        public static string LogFolder
+        {
+            get { return Path.Combine(Path.GetDirectoryName(AppSettings.SettingsPath), "logs"); }
+        }
+
+        private bool _logPruned;
+
+        private void WriteLogFile(string line)
+        {
+            try
+            {
+                Directory.CreateDirectory(LogFolder);
+                if (!_logPruned)
+                {
+                    _logPruned = true;
+                    foreach (var f in Directory.GetFiles(LogFolder, "datvtx-*.log"))
+                        if (File.GetLastWriteTime(f) < DateTime.Now.AddDays(-14)) File.Delete(f);
+                    File.AppendAllText(Path.Combine(LogFolder, "datvtx-" + DateTime.Now.ToString("yyyy-MM-dd") + ".log"),
+                        Environment.NewLine + "==== DATV TX " + Application.ProductVersion + " started " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " ====" + Environment.NewLine);
+                }
+                File.AppendAllText(Path.Combine(LogFolder, "datvtx-" + DateTime.Now.ToString("yyyy-MM-dd") + ".log"),
+                    DateTime.Now.ToString("HH:mm:ss ") + line + Environment.NewLine);
+            }
+            catch { }
         }
 
         private void UI(Action a)
