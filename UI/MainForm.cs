@@ -1074,6 +1074,8 @@ namespace DatvTx.UI
                 if (p.Input == InputType.File && !File.Exists(p.InputFile)) return "Video file not found.";
                 if (!System.Text.RegularExpressions.Regex.IsMatch(p.ImageSize, @"^\d+x\d+$")) return "Resolution must look like 1280x720.";
             }
+            string hwErr = _tx != null ? _tx.Validate(p) : null;
+            if (hwErr != null) return hwErr;
             if (_s.Mode == RunMode.ControlOnly && !(_tx is PlutoMqttTransmitter || _tx is SdrHelperTransmitter)) return "Control-only mode needs a Pluto with F5OEO MQTT firmware, a LimeSDR or a HackRF.";
             return null;
         }
@@ -1113,8 +1115,8 @@ namespace DatvTx.UI
                 {
                     string url = _tx.StreamUrl();
                     string args = FfmpegBuilder.BuildArgs(p, _s, plan, url);
-                    AppendLog("ffmpeg " + args);
-                    _ffmpeg.Start(_s.FfmpegExe, args);
+                    AppendLog((_s.FfmpegExeFor(p.Codec) != _s.FfmpegExe ? "ffmpeg (NVENC compatibility build) " : "ffmpeg ") + args);
+                    _ffmpeg.Start(_s.FfmpegExeFor(p.Codec), args);
                     // Most ffmpeg problems (device busy, bad option) make it exit straight away.
                     await Task.Delay(2000);
                     if (!_ffmpeg.IsRunning)

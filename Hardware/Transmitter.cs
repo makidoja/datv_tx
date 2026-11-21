@@ -70,6 +70,9 @@ namespace DatvTx.Hardware
         /// <summary>Short help text shown when this back end is selected.</summary>
         public virtual string HelpText { get { return ""; } }
 
+        /// <summary>Hardware-specific limits; returns an error message or null.</summary>
+        public virtual string Validate(TxParams p) { return null; }
+
         public virtual void Dispose() { }
 
         public static Transmitter Create(AppSettings s)
@@ -80,6 +83,7 @@ namespace DatvTx.Hardware
                 case HardwareType.PlutoLegacyUdp: return new PlutoLegacyTransmitter(s);
                 case HardwareType.LimeSdr: return new SdrHelperTransmitter(s, "lime");
                 case HardwareType.HackRf: return new SdrHelperTransmitter(s, "hackrf");
+                case HardwareType.Muntjac: return new SdrHelperTransmitter(s, "muntjac");
                 default: return new LocalTestTransmitter(s);
             }
         }

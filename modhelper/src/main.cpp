@@ -9,6 +9,7 @@
 
 #include "core.h"
 #include "libdvbmod.h"
+#include "muntjac.h"
 #include "radio.h"
 #include <algorithm>
 #include <atomic>
@@ -34,11 +35,72 @@ static void Out(const std::string &s)
 static void Usage()
 {
     fprintf(stderr,
-            "datvtx_mod --radio lime|hackrf|file|null --freq HZ --sr SYMBOLS_PER_S\n"
+            "datvtx_mod --radio lime|hackrf|muntjac|file|null --freq HZ --sr SYMBOLS_PER_S [--device COMx]\n"
             "           [--standard dvbs2|dvbs] [--const qpsk|8psk|16apsk|32apsk] [--fec 2/3]\n"
             "           [--pilots] [--short] [--rolloff 0.20|0.25|0.35] [--upsample N]\n"
             "           [--gain DB] [--amp] [--ptt] [--port 10000] [--bind 127.0.0.1]\n"
             "           [--driver-dir DIR] [--no-cal] [--out FILE] [--seconds N] [--bitrate]\n");
+}
+
+// BATC Muntjac: symbols go to the device over USB serial; it does its own pulse shaping.
+static int RunMuntjac(const MuntjacConfig &mc, const std::string &device, double gain, bool ptt, bool bitrateOnly,
+                      const std::string &bindIp, int port, const std::vector<std::string> &calDirs)
+{
+    Muntjac mj;
+    mj.SetGain(gain);
+    std::string err;
+    int bitrate = mj.Init(mc, err);
+    if (bitrate <= 0) { Out("ERROR " + err); return 2; }
+    if (bitrateOnly) { Out("BITRATE " + std::to_string(bitrate)); return 0; }
+    if (device.empty()) { Out("ERROR no Muntjac port given (--device COMx)"); return 2; }
+    if (!mj.Open(device, calDirs, err)) { Out("ERROR " + err); return 1; }
+
+    TsQueue tsq(20000);
+    UdpTsReceiver udp;
+    if (!udp.Start(bindIp, port, &tsq, err)) { Out("ERROR " + err); mj.Stop(); return 1; }
+    mj.SetPtt(ptt);
+    mj.Start(&tsq);
+    Out("READY radio=Muntjac serial=" + mj.Serial() + " version=" + mj.Version() + " bitrate=" + std::to_string(bitrate) +
+        " power=0." + std::to_string(Muntjac::Power(gain)) + " cal=" + (mj.CalibrationFile().empty() ? std::string("internal") : mj.CalibrationFile()) +
+        " udp=" + bindIp + ":" + std::to_string(port));
+
+    std::atomic<bool> quit{false};
+    std::thread control([&] {
+        std::string line;
+        while (!quit && std::getline(std::cin, line))
+        {
+            std::istringstream ss(line);
+            std::string cmd;
+            ss >> cmd;
+            std::string e;
+            if (cmd == "ptt") { int v = 0; ss >> v; mj.SetPtt(v != 0); Out(std::string("PTT ") + (v ? "on" : "off")); }
+            else if (cmd == "gain") { double g = gain; ss >> g; mj.SetGain(g); Out("GAIN " + std::to_string(g) + " power=0." + std::to_string(Muntjac::Power(g))); }
+            else if (cmd == "freq") { double f = 0; ss >> f; if (mj.SetFrequency(f, e)) Out("FREQ " + std::to_string((long long)f)); else Out("ERROR " + e); }
+            else if (cmd == "quit") break;
+        }
+        quit = true;
+    });
+    control.detach();
+
+    auto start = std::chrono::steady_clock::now();
+    while (!quit)
+    {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        for (auto &m : mj.TakeMessages()) Out("MJ " + m);
+        if (!mj.error.empty()) { Out("ERROR Muntjac reported " + mj.error); break; }
+        if (mj.writeFailed) { Out("ERROR Muntjac stopped accepting data (unplugged?)"); break; }
+        double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+        std::ostringstream ss;
+        ss << "STAT ts_kbps=" << (long long)(udp.bytes * 8 / 1000 / std::max(1.0, elapsed)) << " queue=" << tsq.Count()
+           << " frames=" << mj.framesSent << " nulls=" << mj.nullsInserted << " packets=" << mj.packetsSent
+           << " dropped=" << tsq.dropped << " sync_err=" << udp.syncErrors << " underruns=" << mj.underruns
+           << " power=0." << Muntjac::Power(mj.GainDb()) << (mj.Ptt() ? " ptt=on" : " ptt=off");
+        Out(ss.str());
+    }
+    mj.Stop();
+    udp.Stop();
+    Out("STOPPED");
+    std::_Exit(0);
 }
 
 static int AutoUpsample(const std::string &radio, int sr)
@@ -54,7 +116,7 @@ int main(int argc, char **argv)
 {
     setvbuf(stdout, nullptr, _IONBF, 0);
 
-    std::string radioKind = "null", standard = "dvbs2", constel = "qpsk", fec = "1/2", bindIp = "127.0.0.1", outFile;
+    std::string radioKind = "null", standard = "dvbs2", constel = "qpsk", fec = "1/2", bindIp = "127.0.0.1", outFile, device;
     double freq = 2403.25e6, gain = -20, rolloff = 0.20;
     int sr = 333000, upsample = 0, port = 10000, seconds = 0;
     bool pilots = false, shortFrames = false, amp = false, ptt = false, bitrateOnly = false, cal = true;
@@ -87,7 +149,24 @@ int main(int argc, char **argv)
         else if (a == "--out") outFile = next();
         else if (a == "--seconds") seconds = atoi(next().c_str());
         else if (a == "--bitrate") bitrateOnly = true;
+        else if (a == "--device") device = next();
         else { Usage(); return 2; }
+    }
+
+    if (radioKind == "muntjac")
+    {
+        if (standard == "dvbs") { Out("ERROR the Muntjac transmits DVB-S2 only"); return 2; }
+        MuntjacConfig mj;
+        mj.frequency = freq;
+        mj.symbolRate = sr == 333000 ? 333333 : sr; // native rate is 2 MS/s / 6
+        mj.constellation = ParseConstellation(constel);
+        mj.fec = fec;
+        mj.pilots = pilots;
+        mj.shortFrames = shortFrames;
+        mj.rollOff = rolloff;
+        std::vector<std::string> dirs = driverDirs;
+        dirs.push_back(".");
+        return RunMuntjac(mj, device, gain, ptt, bitrateOnly, bindIp, port, dirs);
     }
 
     ModConfig mc;

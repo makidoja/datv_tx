@@ -1,4 +1,11 @@
-## DATV TX (M0CKE) v0.1.1 beta
+## DATV TX (M0CKE) v0.1.2 beta
+
+**New in 0.1.2:** BATC **Muntjac** (70 cm / 13 cm) support over USB: DVB-S2 QPSK/8PSK, 125–1000 KS,
+frequency, power and PTT live. Found automatically on its COM port. *Untested on a real Muntjac yet.*
+**Fixed in 0.1.2:** NVIDIA NVENC on older or Studio drivers ("Required: 13.1 Found: 12.2"). NVENC now
+uses a bundled FFmpeg 7.1 (NVENC API 11.1, driver 470 or newer). Everything else still uses the current FFmpeg.
+
+### Earlier
 
 **Fixed in 0.1.1:** editable fields (symbol rate, image size, frame rate) no longer turn white while transmitting; they stay dark with greyed text.
 **New in 0.1.1:** ON TOP button on the transmit panel keeps the window above other programs (full or compact view).
@@ -9,8 +16,8 @@ DL5OCD's **DATV-NotSoEasy** batch scripts in the OpenTuner M0CKE style: the same
 bitrate maths, without the console menus.
 
 ### Downloads
-- **DatvTx-M0CKE-0.1.1-beta-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
-- **DatvTx-M0CKE-0.1.1-beta-portable.zip**: the same files, to unzip and run.
+- **DatvTx-M0CKE-0.1.2-beta-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
+- **DatvTx-M0CKE-0.1.2-beta-portable.zip**: the same files, to unzip and run.
 
 Both include FFmpeg (x264, x265, H.266 VVC, AV1, NVENC, AMD AMF, Intel QSV), the LimeSDR Mini library
 (LimeSuite 23.11) and the HackRF library (libhackrf with libusb). Windows 10/11 64-bit, .NET Framework 4.7.2+.
@@ -20,6 +27,7 @@ Both include FFmpeg (x264, x265, H.266 VVC, AV1, NVENC, AMD AMF, Intel QSV), the
 - **ADALM-Pluto, older F5OEO firmware**: the app sends the stream; you set up the radio in its web page.
 - **LimeSDR Mini / HackRF One**: built-in DVB-S/S2 modulator (`datvtx_mod.exe`, F5OEO libdvbmod)
   with RRC shaping. Frequency, power and PTT change live. *Not yet tested on air.*
+- **BATC Muntjac** (70 cm / 13 cm): DVB-S2 via USB serial; the app finds the COM port itself. *Not yet tested on air.*
 - **Local test**: encode to a local stream and watch it, with no radio.
 
 ### Features

@@ -44,12 +44,15 @@ namespace DatvTx.Core
                     }
                 }
 
-            // GPU encoders: present in this ffmpeg build?
-            string enc;
+            // GPU encoders: present in the ffmpeg build each codec will use?
+            string enc, encCompat;
             RunFfmpeg(s.FfmpegExe, "-hide_banner -encoders", 30000, out enc);
+            RunFfmpeg(s.FfmpegExeFor("h264_nvenc"), "-hide_banner -encoders", 30000, out encCompat);
+            log.AppendLine("NVENC codecs use: " + s.FfmpegExeFor("h264_nvenc"));
             foreach (var c in Codecs.All)
             {
-                bool present = enc.Contains(" " + c.Value + " ");
+                string list = c.Value.EndsWith("_nvenc", StringComparison.Ordinal) ? encCompat : enc;
+                bool present = list.Contains(" " + c.Value + " ");
                 if (!present) failures++;
                 log.AppendLine((present ? "HAVE " : "MISSING ") + c.Value);
             }

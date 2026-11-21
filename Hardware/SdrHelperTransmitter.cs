@@ -24,8 +24,50 @@ namespace DatvTx.Hardware
         public SdrHelperTransmitter(AppSettings s, string radio) : base(s) { _radio = radio; }
 
         private bool IsHackRf { get { return _radio == "hackrf"; } }
+        private bool IsMuntjac { get { return _radio == "muntjac"; } }
 
-        public override string DisplayName { get { return IsHackRf ? "HackRF One" : "LimeSDR Mini"; } }
+        public override string DisplayName { get { return IsMuntjac ? "BATC Muntjac" : IsHackRf ? "HackRF One" : "LimeSDR Mini"; } }
+
+        public override double[] RollOffs { get { return IsMuntjac ? new[] { 0.20, 0.15, 0.25, 0.35 } : new[] { 0.20, 0.25, 0.35 }; } }
+
+        public override string Validate(TxParams p)
+        {
+            if (!IsMuntjac) return null;
+            if (!p.DvbS2) return "The Muntjac transmits DVB-S2 only.";
+            if (p.Constellation != "qpsk" && p.Constellation != "8psk") return "The Muntjac supports QPSK and 8PSK only.";
+            if (Array.IndexOf(new[] { 125, 250, 333, 500, 1000 }, p.SymbolRateKs) < 0) return "Muntjac symbol rates: 125, 250, 333, 500 or 1000 KS.";
+            if (p.Constellation == "8psk" && p.SymbolRateKs == 1000) return "The Muntjac cannot do 8PSK at 1000 KS.";
+            double f = p.TxFrequencyMHz;
+            if (!((f >= 389.5 && f <= 510) || (f >= 770 && f <= 1030) || (f >= 2390 && f <= 2490)))
+                return "Muntjac frequency ranges: 389.5-510, 770-1030 and 2390-2490 MHz.";
+            return null;
+        }
+
+        /// <summary>Folder for Muntjac LO calibration files (copy &lt;serial&gt;.mjo from the Portsdown here).</summary>
+        public static string CalibrationFolder
+        {
+            get { return Path.GetDirectoryName(AppSettings.SettingsPath); }
+        }
+
+        /// <summary>COM port of the first Muntjac (USB VID 2E8A, PID 000A), or null.</summary>
+        public static string FindMuntjacPort()
+        {
+            try
+            {
+                using (var searcher = new System.Management.ManagementObjectSearcher(
+                    "SELECT Name, PNPDeviceID FROM Win32_PnPEntity WHERE PNPDeviceID LIKE '%VID_2E8A&PID_000A%'"))
+                {
+                    foreach (System.Management.ManagementObject o in searcher.Get())
+                    {
+                        string name = Convert.ToString(o["Name"]);
+                        var m = System.Text.RegularExpressions.Regex.Match(name ?? "", @"\((COM\d+)\)");
+                        if (m.Success) return m.Groups[1].Value;
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
         public override bool SupportsPtt { get { return true; } }
         public override bool SupportsLiveControl { get { return _proc != null && !_proc.HasExited; } }
         public override bool IsConnected { get { return true; } }
@@ -34,9 +76,11 @@ namespace DatvTx.Hardware
         {
             get
             {
+                if (IsMuntjac)
+                    return "Muntjac by USB: DVB-S2 QPSK/8PSK, 125-1000 KS, 389.5-510 / 2390-2490 MHz. Power 0 dB = 0.20.";
                 return IsHackRf
-                    ? "HackRF via the built-in modulator. Needs hackrf.dll (e.g. PothosSDR) and the WinUSB driver (Zadig). Gain 0 dB = TX VGA 47 dB."
-                    : "LimeSDR via the built-in modulator. Needs LimeSuite.dll (e.g. PothosSDR). Gain 0 dB = full normalised TX gain.";
+                    ? "HackRF via the built-in modulator (WinUSB driver via Zadig). Power 0 dB = TX VGA 47 dB."
+                    : "LimeSDR via the built-in modulator (FTDI D3XX driver). Power 0 dB = full TX gain.";
             }
         }
 
@@ -110,6 +154,14 @@ namespace DatvTx.Hardware
             args.Append(" --gain ").Append(gain.ToString("0.##", Inv));
             args.Append(" --port ").Append(Settings.ModulatorPort);
             if (pttOn) args.Append(" --ptt");
+            if (IsMuntjac)
+            {
+                string port = string.IsNullOrWhiteSpace(Settings.MuntjacPort) ? FindMuntjacPort() : Settings.MuntjacPort.Trim();
+                if (string.IsNullOrEmpty(port))
+                    throw new InvalidOperationException("No Muntjac found. Plug it in (USB 2E8A:000A) or set Settings → Muntjac COM port.");
+                args.Append(" --device ").Append(port);
+                args.Append(" --driver-dir ").Append(FfmpegBuilder.Q(CalibrationFolder));
+            }
             if (IsHackRf && Settings.HackRfAmp) args.Append(" --amp");
             if (!IsHackRf && !Settings.LimeCalibrate) args.Append(" --no-cal");
             string drv = string.IsNullOrWhiteSpace(Settings.SdrDriverFolder) ? AppDomain.CurrentDomain.BaseDirectory : Settings.SdrDriverFolder;
@@ -168,7 +220,7 @@ namespace DatvTx.Hardware
                 }
                 return;
             }
-            if (line.StartsWith("ERROR", StringComparison.Ordinal) || line.StartsWith("WARN", StringComparison.Ordinal))
+            if (line.StartsWith("ERROR", StringComparison.Ordinal) || line.StartsWith("WARN", StringComparison.Ordinal) || line.StartsWith("MJ ", StringComparison.Ordinal))
                 RaiseLog(DisplayName + ": " + line);
         }
 
@@ -199,7 +251,7 @@ namespace DatvTx.Hardware
 
         public override Task SetDigitalGainAsync(double db)
         {
-            RaiseLog("Digital gain is a Pluto feature; use Gain on " + DisplayName + ".");
+            RaiseLog("Digital gain is a Pluto feature; use the power slider on " + DisplayName + ".");
             return Task.FromResult(0);
         }
 

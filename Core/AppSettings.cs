@@ -14,6 +14,7 @@ namespace DatvTx.Core
         [Description("Pluto - older F5OEO firmware (UDP only)")] PlutoLegacyUdp,
         [Description("LimeSDR Mini (built-in modulator)")] LimeSdr,
         [Description("HackRF One (built-in modulator)")] HackRf,
+        [Description("BATC Muntjac (70 cm / 13 cm, USB)")] Muntjac,
         [Description("Local test - no radio")] LocalTest
     }
 
@@ -120,6 +121,9 @@ namespace DatvTx.Core
         [Category("3b LimeSDR / HackRF"), DisplayName("HackRF RF amplifier"), Description("Adds about 11 dB. Off unless you need it - check your PA drive level first.")]
         public bool HackRfAmp { get; set; } = false;
 
+        [Category("3c BATC Muntjac"), DisplayName("Muntjac COM port"), Description("Blank = find the Muntjac automatically (USB 2E8A:000A). Or enter e.g. COM7.")]
+        public string MuntjacPort { get; set; } = "";
+
         [Category("3b LimeSDR / HackRF"), DisplayName("Lime calibration at start"), Description("Run LimeSuite TX calibration (reduces carrier leak and image).")]
         public bool LimeCalibrate { get; set; } = true;
 
@@ -209,6 +213,20 @@ namespace DatvTx.Core
 
         [Browsable(false), JsonIgnore]
         public string FfmpegExe { get { return Path.Combine(EffectiveFfmpegFolder, "ffmpeg.exe"); } }
+
+        /// <summary>
+        /// NVIDIA codecs use the bundled FFmpeg 7.1 build (NVENC SDK 11.1, driver 470+) unless the user
+        /// chose their own FFmpeg folder; everything else uses the main build.
+        /// </summary>
+        public string FfmpegExeFor(string codec)
+        {
+            if (string.IsNullOrWhiteSpace(FfmpegFolder) && codec != null && codec.EndsWith("_nvenc", StringComparison.Ordinal))
+            {
+                string compat = Path.Combine(EffectiveFfmpegFolder, "nvenc-compat", "ffmpeg.exe");
+                if (File.Exists(compat)) return compat;
+            }
+            return FfmpegExe;
+        }
 
         [Browsable(false), JsonIgnore]
         public string FfplayExe { get { return Path.Combine(EffectiveFfmpegFolder, "ffplay.exe"); } }

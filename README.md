@@ -12,6 +12,7 @@ calculations and Pluto MQTT commands, without the console menus.
 | ADALM-Pluto, older F5OEO firmware | ffmpeg → UDP to the Pluto | Stream only. Set the radio up in its web page |
 | LimeSDR Mini | ffmpeg → UDP → built-in modulator (`datvtx_mod.exe`) → LimeSuite | Frequency, gain and PTT live; SR, FEC and mode set at START |
 | HackRF One | ffmpeg → UDP → built-in modulator (`datvtx_mod.exe`) → libhackrf | Frequency, gain and PTT live; SR, FEC and mode set at START |
+| BATC Muntjac (70 cm / 13 cm) | ffmpeg → UDP → `datvtx_mod.exe` makes DVB-S2 frames → USB serial to the Muntjac | Frequency (same band), power and PTT live; SR, FEC and mode set at START |
 | Local test | ffmpeg → local multicast | Use MONITOR STREAM to check the picture |
 
 ### LimeSDR Mini and HackRF: the built-in modulator
@@ -69,6 +70,16 @@ Push to `main` and the GitHub Actions workflow builds `DatvTx.exe`, bundles a GP
 - GSE / IP mode (iptables and routing on the Pluto).
 - Changing SR, FEC or mode on the Lime/HackRF while transmitting. Stop and START again for now.
 
+### BATC Muntjac
+
+The Muntjac (G4EWJ, RP2040 + AT86RF215) plugs in by USB and shows up as a COM port; Windows 10/11 installs
+the driver itself. The app finds it automatically (USB 2E8A:000A), or you can set the port in
+Settings → *Muntjac COM port*. Limits: DVB-S2 only, QPSK or 8PSK, 125 / 250 / 333 / 500 / 1000 KS (no 8PSK
+at 1000 KS), 389.5–510, 770–1030 and 2390–2490 MHz. The power slider's 0 dB = Muntjac power 0.20, the
+DATV maximum G4EWJ recommends. For carrier/LO calibration, copy your `<serial>.mjo` file from the
+Portsdown into `%AppData%\DatvTx`; otherwise it uses the internal default. **Untested on a real Muntjac
+so far.** The byte stream was decoded and checked offline (record layout, frame sync and symbol mapping).
+
 ## Credits and licences
 - DATV-NotSoEasy by DL5OCD: the original logic and parameters.
 - Pluto DATV firmware and MQTT interface by F5OEO.
@@ -76,3 +87,4 @@ Push to `main` and the GitHub Actions workflow builds `DatvTx.exe`, bundles a GP
   github.com/F5OEO/libdvbmod. That repository has no licence file, so please confirm with F5OEO before you
   distribute builds publicly.
 - FFmpeg (GPL build) is bundled separately under its own licence.
+- Muntjac USB protocol from G4EWJ's code in the BATC Portsdown 4 (`src/muntjac`, GPL-3.0).
