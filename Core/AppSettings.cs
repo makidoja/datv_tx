@@ -151,7 +151,7 @@ namespace DatvTx.Core
         [Category("5 Encoder"), DisplayName("mpv.exe path"), Description("Optional, for the mpv player.")]
         public string MpvPath { get; set; } = "";
 
-        [Category("5 Encoder"), DisplayName("Encoder hardware")]
+        [Browsable(false)]
         [JsonConverter(typeof(StringEnumConverter))]
         public EncoderType Encoder { get; set; } = EncoderType.Software;
 
@@ -300,6 +300,7 @@ namespace DatvTx.Core
 
         // Encoder
         public string Codec { get; set; } = "libx265";
+        public string Preset { get; set; } = "veryfast";
         public string ImageSize { get; set; } = "1280x720";
         public double Fps { get; set; } = 25;
         public int AudioChannels { get; set; } = 2;

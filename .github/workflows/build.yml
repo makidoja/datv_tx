@@ -55,7 +55,7 @@ jobs:
           Copy-Item "$($bin.FullName)\ffmpeg.exe","$($bin.FullName)\ffplay.exe","$($bin.FullName)\ffprobe.exe" 'out/ffmpeg/'
           $lic = Get-ChildItem -Path $dest -Recurse -Filter 'LICENSE*' | Select-Object -First 1
           if ($lic) { Copy-Item $lic.FullName 'out/ffmpeg/LICENSE.txt' }
-          & 'out/ffmpeg/ffmpeg.exe' -hide_banner -encoders | Select-String -Pattern 'libx264|libx265|libvvenc|libsvtav1|libaom|nvenc'
+          & 'out/ffmpeg/ffmpeg.exe' -hide_banner -encoders | Select-String -Pattern 'libx264|libx265|libvvenc|libsvtav1|libaom|nvenc|_amf|_qsv'
 
       - name: Verify output
         shell: pwsh

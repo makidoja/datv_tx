@@ -46,7 +46,7 @@ namespace DatvTx.UI
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.Clear(BackColor);
 
-            int d = System.Math.Min(Height - 24, 34);
+            int d = 30;
             int gap = 14;
             int housingW = 3 * d + 4 * gap;
             var housing = new Rectangle(0, 2, housingW, d + 12);
@@ -68,16 +68,18 @@ namespace DatvTx.UI
             switch (_state)
             {
                 case TxLight.OnAir: caption = "ON AIR"; colour = Color.FromArgb(255, 99, 99); break;
-                case TxLight.Standby: caption = "STANDBY - carrier muted"; colour = Theme.Amber; break;
+                case TxLight.Standby: caption = "STANDBY"; colour = Theme.Amber; break;
                 case TxLight.Ready: caption = "READY"; colour = Theme.Green; break;
                 default: caption = "NOT READY"; colour = Theme.Muted; break;
             }
-            int tx = housingW + 16;
-            using (var f = Theme.Semi(13f))
-                TextRenderer.DrawText(g, caption, f, new Point(tx, 6), colour);
+            int tx = housingW + 14;
+            using (var f = Theme.Semi(12f))
+                TextRenderer.DrawText(g, caption, f, new Rectangle(tx, 2, Width - tx, d + 12), colour,
+                    TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
             if (_warn)
                 using (var f = Theme.Ui(8.5f))
-                    TextRenderer.DrawText(g, _warnText, f, new Point(tx + 1, 32), Theme.Amber);
+                    TextRenderer.DrawText(g, _warnText, f, new Rectangle(0, d + 18, Width, Height - d - 18), Theme.Amber,
+                        TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak);
         }
 
         private static void DrawLamp(Graphics g, Rectangle r, Color c, bool lit)

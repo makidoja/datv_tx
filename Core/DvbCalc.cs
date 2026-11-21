@@ -165,7 +165,7 @@ namespace DatvTx.Core
 
     public static class Codecs
     {
-        public static bool IsAv1(string c) { return c == "av1_nvenc" || c == "libaom-av1" || c == "libsvtav1"; }
+        public static bool IsAv1(string c) { return c == "av1_nvenc" || c == "av1_amf" || c == "libaom-av1" || c == "libsvtav1"; }
 
         public class CodecChoice
         {
@@ -173,24 +173,31 @@ namespace DatvTx.Core
             public override string ToString() { return Name; }
         }
 
-        public static CodecChoice[] For(EncoderType enc)
+        public static readonly CodecChoice[] All =
         {
-            if (enc == EncoderType.Nvidia)
-                return new[]
-                {
-                    new CodecChoice { Name = "H.264 (NVENC)", Value = "h264_nvenc" },
-                    new CodecChoice { Name = "H.265 (NVENC)", Value = "hevc_nvenc" },
-                    new CodecChoice { Name = "H.266 VVC (software)", Value = "libvvenc" },
-                    new CodecChoice { Name = "AV1 (NVENC)", Value = "av1_nvenc" },
-                };
-            return new[]
-            {
-                new CodecChoice { Name = "H.264 (x264)", Value = "libx264" },
-                new CodecChoice { Name = "H.265 (x265)", Value = "libx265" },
-                new CodecChoice { Name = "H.266 VVC (vvenc)", Value = "libvvenc" },
-                new CodecChoice { Name = "AV1 (libaom)", Value = "libaom-av1" },
-                new CodecChoice { Name = "AV1 (SVT)", Value = "libsvtav1" },
-            };
+            new CodecChoice { Name = "H.264  CPU (x264)", Value = "libx264" },
+            new CodecChoice { Name = "H.265  CPU (x265)", Value = "libx265" },
+            new CodecChoice { Name = "H.264  AMD GPU", Value = "h264_amf" },
+            new CodecChoice { Name = "H.265  AMD GPU", Value = "hevc_amf" },
+            new CodecChoice { Name = "AV1    AMD GPU (RX 7000+)", Value = "av1_amf" },
+            new CodecChoice { Name = "H.264  NVIDIA GPU", Value = "h264_nvenc" },
+            new CodecChoice { Name = "H.265  NVIDIA GPU", Value = "hevc_nvenc" },
+            new CodecChoice { Name = "AV1    NVIDIA GPU (RTX 40+)", Value = "av1_nvenc" },
+            new CodecChoice { Name = "H.264  Intel GPU (QSV)", Value = "h264_qsv" },
+            new CodecChoice { Name = "H.265  Intel GPU (QSV)", Value = "hevc_qsv" },
+            new CodecChoice { Name = "H.266  CPU (vvenc)", Value = "libvvenc" },
+            new CodecChoice { Name = "AV1    CPU (SVT-AV1)", Value = "libsvtav1" },
+            new CodecChoice { Name = "AV1    CPU (libaom)", Value = "libaom-av1" },
+        };
+
+        public static readonly string[] Presets = { "ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow" };
+
+        /// <summary>AMD AMF has three quality levels instead of x264-style presets.</summary>
+        public static string AmfQuality(string preset)
+        {
+            int i = System.Array.IndexOf(Presets, preset);
+            if (i < 0) i = 2;
+            return i <= 2 ? "speed" : i <= 5 ? "balanced" : "quality";
         }
     }
 }

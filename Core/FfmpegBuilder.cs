@@ -54,6 +54,7 @@ namespace DatvTx.Core
             a.Add("-b:v " + N(e.VideoBitrateK) + "K");
 
             string fps = N(p.Fps);
+            string preset = string.IsNullOrEmpty(p.Preset) ? s.PresetSoft : p.Preset;
             string shaping = "-minrate " + N(e.VideoBitrateK) + "K -maxrate " + N(e.VideoBitrateK) + "K -bufsize " + N(e.BufSizeK) + "K";
             string muxrate = "-muxrate " + N(e.TsBitrateK) + "K";
             bool cbr = !s.Vbr;
@@ -66,11 +67,25 @@ namespace DatvTx.Core
                     a.Add(shaping);
                     break;
                 case "libx264":
-                    a.Add("-preset " + s.PresetSoft + " -r " + fps + " -x264-params rc-lookahead=10:no-scenecut=1");
+                    a.Add("-preset " + preset + " -r " + fps + " -x264-params rc-lookahead=10:no-scenecut=1");
                     a.Add(shaping);
                     break;
                 case "libx265":
-                    a.Add("-preset " + s.PresetSoft + " -r " + fps);
+                    a.Add("-preset " + preset + " -r " + fps);
+                    a.Add(shaping);
+                    break;
+                case "h264_amf":
+                    a.Add("-usage lowlatency -quality " + Codecs.AmfQuality(preset) + " -rc cbr -bf 0 -r " + fps);
+                    a.Add(shaping);
+                    break;
+                case "hevc_amf":
+                case "av1_amf":
+                    a.Add("-usage lowlatency -quality " + Codecs.AmfQuality(preset) + " -rc cbr -r " + fps);
+                    a.Add(shaping);
+                    break;
+                case "h264_qsv":
+                case "hevc_qsv":
+                    a.Add("-preset " + preset.Replace("ultrafast", "veryfast").Replace("superfast", "veryfast") + " -look_ahead 0 -r " + fps);
                     a.Add(shaping);
                     break;
                 case "libvvenc":

@@ -44,7 +44,7 @@ namespace DatvTx.UI
         private readonly List<Control> _tabPages = new List<Control>();
 
         // source & encoder
-        private ComboBox _cmbInput, _cmbVideo, _cmbAudio, _cmbCodec, _cmbSize, _cmbFps, _cmbChannels, _cmbAbr;
+        private ComboBox _cmbInput, _cmbVideo, _cmbAudio, _cmbCodec, _cmbPreset, _cmbSize, _cmbFps, _cmbChannels, _cmbAbr;
         private TextBox _txtFile;
         private Button _btnRefresh, _btnBrowse;
         private Panel _fileRow, _videoRow;
@@ -131,7 +131,7 @@ namespace DatvTx.UI
 
             var body = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Theme.Bg, Margin = new Padding(0, 10, 0, 10) };
             body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 360));
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 380));
             _root.Controls.Add(body, 0, 2);
 
             var tabs = BuildTabs();
@@ -316,7 +316,12 @@ namespace DatvTx.UI
             var g2 = Theme.FieldGrid(100);
 
             _cmbCodec = Theme.Combo();
+            _cmbCodec.MaxDropDownItems = 14;
             Theme.AddRow(g2, "Codec", _cmbCodec);
+
+            _cmbPreset = Theme.Combo();
+            _cmbPreset.Items.AddRange(DvbCalc.Presets.Cast<object>().ToArray());
+            Theme.AddRow(g2, "Speed preset", _cmbPreset);
 
             _cmbSize = Theme.Combo(true);
             _cmbSize.Items.AddRange(new object[] { "640x360", "960x540", "1280x720", "1920x1080", "2560x1440" });
@@ -338,9 +343,9 @@ namespace DatvTx.UI
             av.Controls.Add(GroupTitle("VIDEO / AUDIO"));
             page.Controls.Add(av, 1, 1);
 
-            foreach (Control c in new Control[] { _cmbStandard, _cmbConst, _cmbSr, _cmbFec, _cmbFrame, _chkPilots, _cmbCodec, _cmbSize, _cmbFps, _cmbChannels, _cmbAbr })
+            foreach (Control c in new Control[] { _cmbStandard, _cmbConst, _cmbSr, _cmbFec, _cmbFrame, _chkPilots, _cmbCodec, _cmbPreset, _cmbSize, _cmbFps, _cmbChannels, _cmbAbr })
                 HookRecalc(c);
-            _lockWhileRunning.AddRange(new Control[] { _cmbStandard, _cmbConst, _cmbSr, _cmbFec, _cmbFrame, _chkPilots, _cmbCodec, _cmbSize, _cmbFps, _cmbChannels, _cmbAbr });
+            _lockWhileRunning.AddRange(new Control[] { _cmbStandard, _cmbConst, _cmbSr, _cmbFec, _cmbFrame, _chkPilots, _cmbCodec, _cmbPreset, _cmbSize, _cmbFps, _cmbChannels, _cmbAbr });
             return page;
         }
 
@@ -526,7 +531,7 @@ namespace DatvTx.UI
 
             var cols = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Theme.Surface };
             cols.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            cols.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
+            cols.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 84));
 
             var stack = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, BackColor = Theme.Surface, Margin = new Padding(0) };
             int r = 0;
@@ -556,7 +561,7 @@ namespace DatvTx.UI
 
             add(new Label { Text = "TRANSMISSION", Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Semi(8.5f), TextAlign = ContentAlignment.BottomLeft }, 22);
             _light = new TrafficLight { Dock = DockStyle.Fill };
-            add(_light, 60);
+            add(_light, 84);
 
             _lblStats = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Ui(8.5f), TextAlign = ContentAlignment.MiddleLeft };
             add(_lblStats, 24);
@@ -604,7 +609,7 @@ namespace DatvTx.UI
                 if (CanLive()) { _gainTimer.Stop(); _gainTimer.Start(); }
             };
             power.Controls.Add(_trkPower, 0, 1);
-            _lblPower = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Text, Font = Theme.Semi(9.5f), TextAlign = ContentAlignment.MiddleCenter, BackColor = Theme.Surface2 };
+            _lblPower = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Text, Font = Theme.Semi(9f), TextAlign = ContentAlignment.MiddleCenter, BackColor = Theme.Surface2 };
             power.Controls.Add(_lblPower, 0, 2);
 
             cols.Controls.Add(stack, 0, 0);
@@ -746,7 +751,7 @@ namespace DatvTx.UI
         private void RefillCodecs(string keep)
         {
             _cmbCodec.Items.Clear();
-            foreach (var c in Codecs.For(_s.Encoder)) _cmbCodec.Items.Add(c);
+            foreach (var c in Codecs.All) _cmbCodec.Items.Add(c);
             int sel = 0;
             for (int i = 0; i < _cmbCodec.Items.Count; i++)
                 if (((Codecs.CodecChoice)_cmbCodec.Items[i]).Value == keep) sel = i;
@@ -781,6 +786,7 @@ namespace DatvTx.UI
                 AudioDevice = _cmbAudio.Text.Trim(),
                 InputFile = _txtFile.Text.Trim(),
                 Codec = _cmbCodec.SelectedItem is Codecs.CodecChoice ? ((Codecs.CodecChoice)_cmbCodec.SelectedItem).Value : "libx265",
+                Preset = (_cmbPreset.SelectedItem as string) ?? "veryfast",
                 ImageSize = _cmbSize.Text.Trim(),
                 Fps = FirstNumber(_cmbFps.Text, 25),
                 AudioChannels = new[] { 1, 2, 6, 8 }[Math.Max(0, _cmbChannels.SelectedIndex)],
@@ -811,6 +817,7 @@ namespace DatvTx.UI
                 _cmbAudio.Text = p.AudioDevice ?? "";
                 _txtFile.Text = p.InputFile ?? "";
                 RefillCodecs(p.Codec);
+                SelectOrText(_cmbPreset, string.IsNullOrEmpty(p.Preset) ? "veryfast" : p.Preset);
                 SelectOrText(_cmbSize, p.ImageSize);
                 SelectOrText(_cmbFps, p.Fps.ToString("0.##", Inv));
                 _cmbChannels.SelectedIndex = Math.Max(0, Array.IndexOf(new[] { 1, 2, 6, 8 }, p.AudioChannels));
@@ -882,10 +889,10 @@ namespace DatvTx.UI
         {
             _lblTs.Text = plan.TsBitrateK.ToString("0", Inv) + " kb/s" + (plan.TsFromDevice ? "  ✓" : "");
             _lblVideo.Text = plan.VideoBitrateK.ToString("0", Inv) + " kb/s";
-            _lblSummary.Text = string.Format(Inv, "{0} {1}  {2} KS  FEC {3}  {4}{5}\n{6} {7} @ {8:0.##} fps, audio {9} k",
+            _lblSummary.Text = string.Format(Inv, "{0} {1}  {2} KS  FEC {3}  {4}{5}\n{6} {10}  {7} @ {8:0.##} fps, audio {9} k",
                 p.DvbS2 ? "DVB-S2" : "DVB-S", p.Constellation.ToUpperInvariant(), p.SymbolRateKs, p.Fec,
                 p.ShortFrames ? "short" : "long", p.Pilots ? ", pilots" : "",
-                p.Codec, p.ImageSize, p.Fps, p.AudioBitrateK);
+                p.Codec, p.ImageSize, p.Fps, p.AudioBitrateK, p.Preset);
         }
 
         // ================================================================== transmitter
@@ -1276,7 +1283,7 @@ namespace DatvTx.UI
             var stw = _lastStats;
             double speed;
             if (_running && stw != null && stw.Frame > 50 && double.TryParse(stw.Speed.TrimEnd('x'), NumberStyles.Float, Inv, out speed) && speed < 0.97)
-                warn = "Encoder too slow (" + stw.Speed + ") - lower size/fps or faster preset";
+                warn = "Encoder too slow (" + stw.Speed + "): use a GPU codec, a faster preset or a smaller size";
             string ur;
             long underruns;
             if (_running && _telemetry.TryGetValue("mod/underruns", out ur) && long.TryParse(ur, out underruns))
