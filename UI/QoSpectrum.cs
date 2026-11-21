@@ -49,7 +49,7 @@ namespace DatvTx.UI
         private Point _mouse = new Point(-1, -1);
         private bool _onAir;
 
-        private const int RowHeight = 9;
+        private static int RowHeight { get { return Theme.S(9); } }
         private const int Rows = 4;
 
         public QoSpectrum()
@@ -208,12 +208,12 @@ namespace DatvTx.UI
 
         // ------------------------------------------------------------------ geometry
 
-        private Rectangle PlotRect { get { return new Rectangle(10, 6, Math.Max(20, Width - 20), Math.Max(30, Height - 12 - Rows * (RowHeight + 2) - 14)); } }
+        private Rectangle PlotRect { get { return new Rectangle(Theme.S(10), Theme.S(6), Math.Max(20, Width - Theme.S(20)), Math.Max(30, Height - Theme.S(12) - Rows * (RowHeight + 2) - Theme.S(14))); } }
 
         private Rectangle RowRect(int row)
         {
             var p = PlotRect;
-            int top = p.Bottom + 4 + (Rows - 1 - row) * (RowHeight + 2);
+            int top = p.Bottom + Theme.S(4) + (Rows - 1 - row) * (RowHeight + 2);
             return new Rectangle(p.Left, top, p.Width, RowHeight);
         }
 
@@ -286,7 +286,7 @@ namespace DatvTx.UI
                 {
                     float x = X(m);
                     g.DrawLine(grid, x, plot.Top, x, plot.Bottom);
-                    TextRenderer.DrawText(g, m.ToString(CultureInfo.InvariantCulture), f, new Point((int)x - 14, Height - 14), Theme.Muted);
+                    TextRenderer.DrawText(g, m.ToString(CultureInfo.InvariantCulture), f, new Point((int)x - Theme.S(14), Height - Theme.S(14)), Theme.Muted);
                 }
 
             if (fft != null && (DateTime.Now - last).TotalSeconds < 10)
@@ -302,7 +302,7 @@ namespace DatvTx.UI
                 using (var p = new Pen(Color.FromArgb(200, 255, 255, 255), 1f) { DashStyle = DashStyle.Dash })
                     g.DrawLine(p, plot.Left, yb, plot.Right, yb);
                 using (var f = Theme.Ui(7.5f))
-                    TextRenderer.DrawText(g, "beacon 0 dBb", f, new Point(plot.Right - 72, (int)yb - 14), Color.FromArgb(220, 255, 255, 255));
+                    TextRenderer.DrawText(g, "beacon 0 dBb", f, new Point((int)X(10492.3), (int)yb - Theme.S(14)), Color.FromArgb(220, 255, 255, 255));
             }
             if (!double.IsNaN(_dbb))
             {
@@ -333,7 +333,13 @@ namespace DatvTx.UI
                 using (var b = new SolidBrush(Color.FromArgb(50, c))) g.FillRectangle(b, x0, plot.Top, Math.Max(2, x1 - x0), plot.Height);
                 using (var p = new Pen(c, 1.5f)) g.DrawLine(p, X(_txDownlinkMHz), plot.Top, X(_txDownlinkMHz), plot.Bottom);
                 using (var f = Theme.Semi(8f))
-                    TextRenderer.DrawText(g, (_onAir ? "TX " : "") + _txDownlinkMHz.ToString("0.00", CultureInfo.InvariantCulture), f, new Point((int)x1 + 3, plot.Top + 3), c);
+                {
+                    string lbl = (_onAir ? "TX " : "") + _txDownlinkMHz.ToString("0.00", CultureInfo.InvariantCulture);
+                    int w = TextRenderer.MeasureText(lbl, f).Width;
+                    int lx = (int)x1 + 3;
+                    if (lx + w > plot.Right) lx = (int)x0 - w - 3; // keep it inside the plot near the top edge
+                    TextRenderer.DrawText(g, lbl, f, new Point(lx, plot.Bottom - Theme.S(18)), c);
+                }
             }
 
             // channel rows

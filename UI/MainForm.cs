@@ -75,9 +75,12 @@ namespace DatvTx.UI
         private TextBox _log;
         private readonly List<Control> _lockWhileRunning = new List<Control>();
 
+        private static int S(int px) { return Theme.S(px); }
+
         public MainForm()
         {
             _s = AppSettings.Load();
+            using (var g = CreateGraphics()) Theme.Scale = Math.Max(1f, g.DpiX / 96f);
 
             Text = ProductTitle;
             Icon = Theme.BuildIcon();
@@ -85,9 +88,9 @@ namespace DatvTx.UI
             ForeColor = Theme.Text;
             Font = Theme.Ui(9f);
             StartPosition = FormStartPosition.CenterScreen;
-            MinimumSize = new Size(960, 820);
-            Size = new Size(Math.Max(960, _s.NormalWidth), Math.Max(820, _s.NormalHeight));
-            AutoScaleMode = AutoScaleMode.Dpi;
+            MinimumSize = new Size(S(960), S(820));
+            Size = new Size(Math.Max(S(960), _s.NormalWidth), Math.Max(S(820), _s.NormalHeight));
+            AutoScaleMode = AutoScaleMode.None;
 
             BuildUi();
             CreateTransmitter();
@@ -112,11 +115,11 @@ namespace DatvTx.UI
 
         private void BuildUi()
         {
-            _root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(12), BackColor = Theme.Bg };
-            _root.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
-            _root.RowStyles.Add(new RowStyle(SizeType.Absolute, 200));
+            _root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(S(12)), BackColor = Theme.Bg };
+            _root.RowStyles.Add(new RowStyle(SizeType.Absolute, S(70)));
+            _root.RowStyles.Add(new RowStyle(SizeType.Absolute, S(200)));
             _root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            _root.RowStyles.Add(new RowStyle(SizeType.Absolute, 120));
+            _root.RowStyles.Add(new RowStyle(SizeType.Absolute, S(120)));
             Controls.Add(_root);
 
             _header = BuildHeader();
@@ -124,32 +127,32 @@ namespace DatvTx.UI
 
             _spectrumCard = Theme.Card();
             _spectrumCard.Dock = DockStyle.Fill;
-            _spectrumCard.Margin = new Padding(0, 10, 0, 0);
-            _spectrumCard.Padding = new Padding(6, 4, 6, 4);
+            _spectrumCard.Margin = new Padding(S(0), S(10), S(0), S(0));
+            _spectrumCard.Padding = new Padding(S(6), S(4), S(6), S(4));
             _spectrum = new QoSpectrum { Dock = DockStyle.Fill };
             _spectrum.ChannelPicked += (down, sr) => BeginInvoke((Action)(async () => await ChannelPicked(down, sr)));
             _spectrum.LevelUpdated += v => UI(() => { _dbb = v; ShowDbb(); });
-            var specTitle = new Label { Text = "QO-100 WIDEBAND  •  BATC live spectrum  •  click a channel to set the TX frequency", Dock = DockStyle.Top, Height = 20, ForeColor = Theme.Muted, Font = Theme.Semi(8.5f), Padding = new Padding(6, 0, 0, 0) };
+            var specTitle = new Label { Text = "QO-100 WIDEBAND  •  BATC live spectrum  •  click a channel to set the TX frequency", Dock = DockStyle.Top, Height = S(20), ForeColor = Theme.Muted, Font = Theme.Semi(8.5f), Padding = new Padding(S(6), S(0), S(0), S(0)) };
             _spectrumCard.Controls.Add(_spectrum);
             _spectrumCard.Controls.Add(specTitle);
             _root.Controls.Add(_spectrumCard, 0, 1);
 
-            _body = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Theme.Bg, Margin = new Padding(0, 10, 0, 10) };
+            _body = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Theme.Bg, Margin = new Padding(S(0), S(10), S(0), S(10)) };
             _body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            _body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 300));
+            _body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, S(300)));
             _root.Controls.Add(_body, 0, 2);
 
             _tabsCard = BuildTabs();
-            _tabsCard.Margin = new Padding(0, 0, 6, 0);
+            _tabsCard.Margin = new Padding(S(0), S(0), S(6), S(0));
             _body.Controls.Add(_tabsCard, 0, 0);
             _txCard = BuildTransmitColumn();
-            _txCard.Margin = new Padding(6, 0, 0, 0);
+            _txCard.Margin = new Padding(S(6), S(0), S(0), S(0));
             _body.Controls.Add(_txCard, 1, 0);
 
             var logCard = Theme.Card();
             _logCard = logCard;
             logCard.Dock = DockStyle.Fill;
-            logCard.Padding = new Padding(10, 6, 10, 8);
+            logCard.Padding = new Padding(S(10), S(6), S(10), S(8));
             _log = new TextBox
             {
                 Multiline = true,
@@ -170,7 +173,7 @@ namespace DatvTx.UI
         {
             _s.ShowSpectrum = show;
             _spectrumCard.Visible = show && !_compact;
-            _root.RowStyles[1].Height = show && !_compact ? 200 : 0;
+            _root.RowStyles[1].Height = show && !_compact ? S(200) : 0;
             _btnSpectrum.Text = show ? "HIDE SPECTRUM" : "SPECTRUM";
             if (show) _spectrum.Start(); else _spectrum.Stop();
         }
@@ -191,21 +194,21 @@ namespace DatvTx.UI
             _header.Visible = !compact;
             _tabsCard.Visible = !compact;
             _logCard.Visible = !compact;
-            _root.RowStyles[0].Height = compact ? 0 : 70;
-            _root.RowStyles[3].Height = compact ? 0 : 120;
-            _root.Padding = compact ? new Padding(4) : new Padding(12);
-            _body.Margin = compact ? new Padding(0) : new Padding(0, 10, 0, 10);
-            _body.ColumnStyles[0] = compact ? new ColumnStyle(SizeType.Absolute, 0) : new ColumnStyle(SizeType.Percent, 100);
-            _body.ColumnStyles[1] = compact ? new ColumnStyle(SizeType.Percent, 100) : new ColumnStyle(SizeType.Absolute, 300);
-            _txCard.Margin = compact ? new Padding(0) : new Padding(6, 0, 0, 0);
+            _root.RowStyles[0].Height = compact ? 0 : S(70);
+            _root.RowStyles[3].Height = compact ? 0 : S(120);
+            _root.Padding = compact ? new Padding(S(4)) : new Padding(S(12));
+            _body.Margin = compact ? new Padding(S(0)) : new Padding(S(0), S(10), S(0), S(10));
+            _body.ColumnStyles[0] = compact ? new ColumnStyle(SizeType.Absolute, S(0)) : new ColumnStyle(SizeType.Percent, 100);
+            _body.ColumnStyles[1] = compact ? new ColumnStyle(SizeType.Percent, 100) : new ColumnStyle(SizeType.Absolute, S(300));
+            _txCard.Margin = compact ? new Padding(S(0)) : new Padding(S(6), S(0), S(0), S(0));
             ShowSpectrum(_s.ShowSpectrum); // hides the spectrum card but keeps the feed (dBb) running
             _btnCompact.Text = compact ? "FULL VIEW" : "COMPACT";
             TopMost = compact && _s.CompactOnTop;
 
             if (WindowState != FormWindowState.Normal) WindowState = FormWindowState.Normal;
-            MinimumSize = compact ? new Size(300, 560) : new Size(960, 820);
-            Size = compact ? new Size(Math.Max(300, _s.CompactWidth), Math.Max(560, _s.CompactHeight))
-                           : new Size(Math.Max(960, _s.NormalWidth), Math.Max(820, _s.NormalHeight));
+            MinimumSize = compact ? new Size(S(300), S(560)) : new Size(S(960), S(820));
+            Size = compact ? new Size(Math.Max(S(300), _s.CompactWidth), Math.Max(S(560), _s.CompactHeight))
+                           : new Size(Math.Max(S(960), _s.NormalWidth), Math.Max(S(820), _s.NormalHeight));
             ResumeLayout(true);
             try { _s.Save(); } catch { }
         }
@@ -214,32 +217,32 @@ namespace DatvTx.UI
         {
             var p = Theme.Card();
             p.Dock = DockStyle.Fill;
-            p.Margin = new Padding(0);
+            p.Margin = new Padding(S(0));
 
-            var title = new Label { Text = "◉  " + ProductTitle, AutoSize = true, Location = new Point(16, 8), ForeColor = Theme.Text, Font = Theme.Semi(14f) };
-            var credit = new Label { Text = "based on DATV-NotSoEasy by DL5OCD", AutoSize = true, Location = new Point(20, 42), ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
-            _lblHardware = new Label { AutoSize = true, Location = new Point(330, 12), ForeColor = Theme.Text, Font = Theme.Semi(10f) };
-            _lblHelp = new Label { AutoSize = false, Location = new Point(330, 34), Size = new Size(400, 32), ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
+            var title = new Label { Text = "◉  " + ProductTitle, AutoSize = true, Location = new Point(S(16), S(8)), ForeColor = Theme.Text, Font = Theme.Semi(14f) };
+            var credit = new Label { Text = "based on DATV-NotSoEasy by DL5OCD", AutoSize = true, Location = new Point(S(20), S(42)), ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
+            _lblHardware = new Label { AutoSize = true, Location = new Point(S(330), S(12)), ForeColor = Theme.Text, Font = Theme.Semi(10f) };
+            _lblHelp = new Label { AutoSize = false, Location = new Point(S(330), S(34)), Size = new Size(S(400), S(32)), ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
 
             _btnSettings = Theme.Button("SETTINGS");
-            _btnSettings.Size = new Size(100, 38);
+            _btnSettings.Size = new Size(S(100), S(38));
             _btnSettings.Click += (s, e) => OpenSettings();
 
             _btnConnect = Theme.Button("CONNECT", true);
-            _btnConnect.Size = new Size(130, 38);
+            _btnConnect.Size = new Size(S(130), S(38));
             _btnConnect.Click += async (s, e) => await ToggleConnectionAsync();
 
             _btnSpectrum = Theme.Button("SPECTRUM");
-            _btnSpectrum.Size = new Size(124, 38);
+            _btnSpectrum.Size = new Size(S(124), S(38));
             _btnSpectrum.Click += (s, e) => ShowSpectrum(!_s.ShowSpectrum);
 
             p.Controls.AddRange(new Control[] { title, credit, _lblHardware, _lblHelp, _btnSpectrum, _btnConnect, _btnSettings });
             p.Resize += (s, e) =>
             {
-                _btnSettings.Location = new Point(p.Width - _btnSettings.Width - 14, 15);
-                _btnConnect.Location = new Point(_btnSettings.Left - _btnConnect.Width - 8, 15);
-                _btnSpectrum.Location = new Point(_btnConnect.Left - _btnSpectrum.Width - 8, 15);
-                _lblHelp.Width = Math.Max(150, _btnSpectrum.Left - _lblHelp.Left - 12);
+                _btnSettings.Location = new Point(p.Width - _btnSettings.Width - S(14), S(15));
+                _btnConnect.Location = new Point(_btnSettings.Left - _btnConnect.Width - S(8), S(15));
+                _btnSpectrum.Location = new Point(_btnConnect.Left - _btnSpectrum.Width - S(8), S(15));
+                _lblHelp.Width = Math.Max(S(150), _btnSpectrum.Left - _lblHelp.Left - S(12));
             };
             return p;
         }
@@ -250,10 +253,10 @@ namespace DatvTx.UI
         {
             var card = Theme.Card();
             card.Dock = DockStyle.Fill;
-            card.Padding = new Padding(12, 8, 12, 10);
+            card.Padding = new Padding(S(12), S(8), S(12), S(10));
 
-            var strip = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 40, BackColor = Theme.Surface, WrapContents = false, Padding = new Padding(0, 0, 0, 4) };
-            var host = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Surface, Padding = new Padding(0, 8, 0, 0) };
+            var strip = new FlowLayoutPanel { Dock = DockStyle.Top, Height = S(40), BackColor = Theme.Surface, WrapContents = false, Padding = new Padding(S(0), S(0), S(0), S(4)) };
+            var host = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Surface, Padding = new Padding(S(0), S(8), S(0), S(0)) };
 
             AddTab(strip, host, "DVB", BuildDvbPage());
             AddTab(strip, host, "SOURCE", BuildSourcePage());
@@ -270,8 +273,8 @@ namespace DatvTx.UI
         {
             int index = _tabButtons.Count;
             var b = Theme.Button(name);
-            b.Size = new Size(104, 32);
-            b.Margin = new Padding(0, 0, 6, 0);
+            b.Size = new Size(S(104), S(32));
+            b.Margin = new Padding(S(0), S(0), S(6), S(0));
             b.Click += (s, e) => SelectTab(index);
             strip.Controls.Add(b);
             _tabButtons.Add(b);
@@ -294,7 +297,7 @@ namespace DatvTx.UI
 
         private static Label GroupTitle(string text)
         {
-            return new Label { Text = text, Dock = DockStyle.Top, Height = 24, ForeColor = Theme.Text, Font = Theme.Semi(9.5f), TextAlign = ContentAlignment.MiddleLeft };
+            return new Label { Text = text, Dock = DockStyle.Top, Height = S(24), ForeColor = Theme.Text, Font = Theme.Semi(9.5f), TextAlign = ContentAlignment.MiddleLeft };
         }
 
         private Control BuildDvbPage()
@@ -302,7 +305,7 @@ namespace DatvTx.UI
             var page = new TableLayoutPanel { ColumnCount = 2, RowCount = 2, BackColor = Theme.Surface };
             page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
             page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            page.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
+            page.RowStyles.Add(new RowStyle(SizeType.Absolute, S(58)));
             page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             _lblTs = BitrateBox("Target TS bitrate");
@@ -311,7 +314,7 @@ namespace DatvTx.UI
             page.Controls.Add(_lblVideo.Parent, 1, 0);
 
             // ---- MODE
-            var mode = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Surface, Margin = new Padding(0, 0, 10, 0) };
+            var mode = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Surface, Margin = new Padding(S(0), S(0), S(10), S(0)) };
             var grid = Theme.FieldGrid(110);
 
             _cmbStandard = Theme.Combo();
@@ -352,7 +355,7 @@ namespace DatvTx.UI
             page.Controls.Add(mode, 0, 1);
 
             // ---- VIDEO / AUDIO
-            var av = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Surface, Margin = new Padding(10, 0, 0, 0) };
+            var av = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Surface, Margin = new Padding(S(10), S(0), S(0), S(0)) };
             var g2 = Theme.FieldGrid(100);
 
             _cmbCodec = Theme.Combo();
@@ -392,8 +395,8 @@ namespace DatvTx.UI
         /// <summary>A titled read-only value box (DATV-Easy style). Returns the value label; its Parent is the box.</summary>
         private static Label BitrateBox(string title)
         {
-            var box = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Surface, Margin = new Padding(0, 0, 10, 6) };
-            var t = new Label { Text = title, Dock = DockStyle.Top, Height = 20, ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
+            var box = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Surface, Margin = new Padding(S(0), S(0), S(10), S(6)) };
+            var t = new Label { Text = title, Dock = DockStyle.Top, Height = S(20), ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
             var v = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Text, BackColor = Theme.Surface2, Font = Theme.Semi(12f), TextAlign = ContentAlignment.MiddleCenter };
             box.Controls.Add(v);
             box.Controls.Add(t);
@@ -412,7 +415,7 @@ namespace DatvTx.UI
 
             _cmbVideo = Theme.Combo(true);
             _btnRefresh = Theme.Button("↻");
-            _btnRefresh.Width = 34; _btnRefresh.Dock = DockStyle.Right; _btnRefresh.Margin = new Padding(0);
+            _btnRefresh.Width = S(34); _btnRefresh.Dock = DockStyle.Right; _btnRefresh.Margin = new Padding(S(0));
             _btnRefresh.Click += async (s, e) => await RefreshDevicesAsync();
             _videoRow = Inline(_cmbVideo, _btnRefresh);
             Theme.AddRow(grid, "Video device", _videoRow);
@@ -422,7 +425,7 @@ namespace DatvTx.UI
 
             _txtFile = Theme.TextBox();
             _btnBrowse = Theme.Button("…");
-            _btnBrowse.Width = 34; _btnBrowse.Dock = DockStyle.Right;
+            _btnBrowse.Width = S(34); _btnBrowse.Dock = DockStyle.Right;
             _btnBrowse.Click += (s, e) => BrowseFile();
             _fileRow = Inline(_txtFile, _btnBrowse);
             Theme.AddRow(grid, "Video file", _fileRow);
@@ -430,10 +433,10 @@ namespace DatvTx.UI
             var hint = new Label
             {
                 Dock = DockStyle.Top,
-                Height = 70,
+                Height = S(70),
                 ForeColor = Theme.Muted,
                 Font = Theme.Ui(8.5f),
-                Padding = new Padding(0, 10, 0, 0),
+                Padding = new Padding(S(0), S(10), S(0), S(0)),
                 Text = "OBS: Tools → Start Virtual Camera, and send audio to a virtual cable (e.g. VB-Audio) or the OBS audio device.\n" +
                        "Network UDP / RTMP and the file loop are set in Settings → Input. Press ↻ after plugging in a device."
             };
@@ -457,21 +460,21 @@ namespace DatvTx.UI
                 BorderStyle = BorderStyle.None,
                 Font = Theme.Ui(9.5f),
                 DrawMode = DrawMode.OwnerDrawFixed,
-                ItemHeight = 40,
+                ItemHeight = S(40),
                 IntegralHeight = false
             };
             _lstMem.DrawItem += DrawMemory;
             _lstMem.DoubleClick += (s, e) => RecallMemory();
 
-            var bar = new TableLayoutPanel { Dock = DockStyle.Bottom, Height = 46, ColumnCount = 5, BackColor = Theme.Surface, Padding = new Padding(0, 8, 0, 0) };
+            var bar = new TableLayoutPanel { Dock = DockStyle.Bottom, Height = S(46), ColumnCount = 5, BackColor = Theme.Surface, Padding = new Padding(S(0), S(8), S(0), S(0)) };
             bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            for (int i = 0; i < 4; i++) bar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 96));
+            for (int i = 0; i < 4; i++) bar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, S(96)));
             _txtMemName = Theme.TextBox();
-            _txtMemName.Margin = new Padding(0, 4, 8, 4);
-            var recall = Theme.Button("RECALL", true); recall.Dock = DockStyle.Fill; recall.Margin = new Padding(0, 2, 6, 2);
-            var store = Theme.Button("STORE NEW"); store.Dock = DockStyle.Fill; store.Margin = new Padding(0, 2, 6, 2);
-            var over = Theme.Button("OVERWRITE"); over.Dock = DockStyle.Fill; over.Margin = new Padding(0, 2, 6, 2);
-            var del = Theme.Button("DELETE"); del.Dock = DockStyle.Fill; del.Margin = new Padding(0, 2, 0, 2);
+            _txtMemName.Margin = new Padding(S(0), S(4), S(8), S(4));
+            var recall = Theme.Button("RECALL", true); recall.Dock = DockStyle.Fill; recall.Margin = new Padding(S(0), S(2), S(6), S(2));
+            var store = Theme.Button("STORE NEW"); store.Dock = DockStyle.Fill; store.Margin = new Padding(S(0), S(2), S(6), S(2));
+            var over = Theme.Button("OVERWRITE"); over.Dock = DockStyle.Fill; over.Margin = new Padding(S(0), S(2), S(6), S(2));
+            var del = Theme.Button("DELETE"); del.Dock = DockStyle.Fill; del.Margin = new Padding(S(0), S(2), S(0), S(2));
             recall.Click += (s, e) => RecallMemory();
             store.Click += (s, e) => StoreMemory(false);
             over.Click += (s, e) => StoreMemory(true);
@@ -487,7 +490,7 @@ namespace DatvTx.UI
                 if (m != null) _txtMemName.Text = m.Name;
             };
 
-            var hint = new Label { Text = "Name a set-up and press STORE NEW. Double-click or RECALL to load it (frequency, mode, SR, FEC, codec, power).", Dock = DockStyle.Top, Height = 22, ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
+            var hint = new Label { Text = "Name a set-up and press STORE NEW. Double-click or RECALL to load it (frequency, mode, SR, FEC, codec, power).", Dock = DockStyle.Top, Height = S(22), ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
             page.Controls.Add(_lstMem);
             page.Controls.Add(bar);
             page.Controls.Add(hint);
@@ -527,13 +530,13 @@ namespace DatvTx.UI
         {
             var card = Theme.Card();
             card.Dock = DockStyle.Fill;
-            card.Padding = new Padding(10, 8, 6, 10);
+            card.Padding = new Padding(S(10), S(8), S(6), S(10));
 
             var cols = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Theme.Surface };
             cols.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            cols.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 62));
+            cols.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, S(62)));
 
-            var stack = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, BackColor = Theme.Surface, Margin = new Padding(0) };
+            var stack = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, BackColor = Theme.Surface, Margin = new Padding(S(0)) };
             int r = 0;
             Action<Control, int> add = (c, h) =>
             {
@@ -545,7 +548,7 @@ namespace DatvTx.UI
 
             _cmbFreq = Theme.Combo(true);
             _cmbFreq.Font = Theme.Semi(15f);
-            _cmbFreq.ItemHeight = 26;
+            _cmbFreq.ItemHeight = S(26);
             for (int i = 0; i < 28; i++)
             {
                 double up = 2403.25 + i * 0.25;
@@ -554,46 +557,47 @@ namespace DatvTx.UI
             _cmbFreq.SelectionChangeCommitted += (s, e) => BeginInvoke((Action)(async () => await FrequencyCommitted()));
             _cmbFreq.KeyDown += async (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; await FrequencyCommitted(); } };
             _cmbFreq.Leave += async (s, e) => await FrequencyCommitted();
-            add(_cmbFreq, 40);
+            add(_cmbFreq, S(40));
 
             _lblDownlink = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Ui(9f), TextAlign = ContentAlignment.TopLeft };
-            add(_lblDownlink, 22);
+            add(_lblDownlink, S(22));
 
-            _lblDbb = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Semi(10f), TextAlign = ContentAlignment.MiddleLeft, BackColor = Theme.Surface2, Padding = new Padding(6, 0, 0, 0), Margin = new Padding(0, 2, 0, 2) };
-            add(_lblDbb, 28);
+            _lblDbb = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Semi(10f), TextAlign = ContentAlignment.MiddleLeft, BackColor = Theme.Surface2, Padding = new Padding(S(6), S(0), S(0), S(0)), Margin = new Padding(S(0), S(2), S(0), S(2)) };
+            add(_lblDbb, S(28));
 
             add(new Label { Text = "TRANSMISSION", Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Semi(8.5f), TextAlign = ContentAlignment.BottomLeft }, 22);
             _light = new TrafficLight { Dock = DockStyle.Fill };
-            add(_light, 84);
+            add(_light, S(92));
 
             _lblStats = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Ui(8.5f), TextAlign = ContentAlignment.MiddleLeft };
-            add(_lblStats, 24);
+            add(_lblStats, S(24));
 
             _btnStart = Theme.Button("START", true);
-            _btnStart.Dock = DockStyle.Fill; _btnStart.Font = Theme.Semi(13f); _btnStart.Margin = new Padding(0, 4, 0, 4);
+            _btnStart.Dock = DockStyle.Fill; _btnStart.Font = Theme.Semi(13f); _btnStart.Margin = new Padding(S(0), S(4), S(0), S(4));
             _btnStart.Click += async (s, e) => await StartStopAsync();
-            add(_btnStart, 54);
+            add(_btnStart, S(54));
 
             _btnPtt = Theme.Button("PTT");
-            _btnPtt.Dock = DockStyle.Fill; _btnPtt.Font = Theme.Semi(13f); _btnPtt.Margin = new Padding(0, 4, 0, 4);
+            _btnPtt.Dock = DockStyle.Fill; _btnPtt.Font = Theme.Semi(13f); _btnPtt.Margin = new Padding(S(0), S(4), S(0), S(4));
             _btnPtt.Click += async (s, e) => await TogglePttAsync();
-            add(_btnPtt, 54);
+            add(_btnPtt, S(54));
 
             _btnMonitor = Theme.Button("MONITOR STREAM");
-            _btnMonitor.Dock = DockStyle.Fill; _btnMonitor.Margin = new Padding(0, 4, 0, 4);
+            _btnMonitor.Dock = DockStyle.Fill; _btnMonitor.Margin = new Padding(S(0), S(4), S(0), S(4));
             _btnMonitor.Click += (s, e) => OpenMonitor();
-            add(_btnMonitor, 38);
+            add(_btnMonitor, S(38));
 
-            _lblSummary = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Ui(8.5f), TextAlign = ContentAlignment.TopLeft, Padding = new Padding(0, 6, 0, 0) };
-            add(_lblSummary, 0);
+            _lblSummary = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Ui(8.5f), TextAlign = ContentAlignment.TopLeft, Padding = new Padding(S(0), S(6), S(0), S(0)) };
+            add(_lblSummary, S(0));
             stack.RowCount = r;
 
             // power slider (DATV-Easy style)
-            var power = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, BackColor = Theme.Surface, Margin = new Padding(4, 0, 0, 0) };
-            power.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
+            var power = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, BackColor = Theme.Surface, Margin = new Padding(S(4), S(0), S(0), S(0)) };
+            power.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            power.RowStyles.Add(new RowStyle(SizeType.Absolute, S(22)));
             power.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            power.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-            power.Controls.Add(new Label { Text = "POWER", Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Semi(8.5f), TextAlign = ContentAlignment.BottomCenter }, 0, 0);
+            power.RowStyles.Add(new RowStyle(SizeType.Absolute, S(40)));
+            power.Controls.Add(new Label { Text = "POWER", Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Semi(7.5f), TextAlign = ContentAlignment.BottomCenter }, 0, 0);
             _trkPower = new TrackBar
             {
                 Orientation = Orientation.Vertical,
@@ -604,7 +608,8 @@ namespace DatvTx.UI
                 SmallChange = 1,
                 LargeChange = 4,
                 TickStyle = TickStyle.Both,
-                BackColor = Theme.Surface
+                BackColor = Theme.Surface,
+                AutoSize = false   // fill the column so the slider is centred over the dB box
             };
             _trkPower.ValueChanged += (s, e) =>
             {
@@ -618,14 +623,14 @@ namespace DatvTx.UI
             cols.Controls.Add(stack, 0, 0);
             cols.Controls.Add(power, 1, 0);
             card.Controls.Add(cols);
-            var titleRow = new Panel { Dock = DockStyle.Top, Height = 32, BackColor = Theme.Surface };
+            var titleRow = new Panel { Dock = DockStyle.Top, Height = S(32), BackColor = Theme.Surface };
             var title = Theme.CardTitle("TRANSMIT");
             title.Dock = DockStyle.Fill;
             _btnCompact = Theme.Button("COMPACT");
             _btnCompact.Dock = DockStyle.Right;
-            _btnCompact.Width = 84;
+            _btnCompact.Width = S(84);
             _btnCompact.Font = Theme.Semi(8f);
-            _btnCompact.Margin = new Padding(0);
+            _btnCompact.Margin = new Padding(S(0));
             _btnCompact.Click += (s, e) => SetCompact(!_compact);
             titleRow.Controls.Add(title);
             titleRow.Controls.Add(_btnCompact);
@@ -674,10 +679,10 @@ namespace DatvTx.UI
 
         private static Panel Inline(Control main, Control side)
         {
-            var p = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0, 3, 0, 3), BackColor = Theme.Surface };
+            var p = new Panel { Dock = DockStyle.Fill, Margin = new Padding(S(0), S(3), S(0), S(3)), BackColor = Theme.Surface };
             main.Dock = DockStyle.Fill;
-            main.Margin = new Padding(0);
-            var gap = new Panel { Dock = DockStyle.Right, Width = 4, BackColor = Theme.Surface };
+            main.Margin = new Padding(S(0));
+            var gap = new Panel { Dock = DockStyle.Right, Width = S(4), BackColor = Theme.Surface };
             p.Controls.Add(main);
             p.Controls.Add(gap);
             p.Controls.Add(side);
@@ -1281,17 +1286,17 @@ namespace DatvTx.UI
             var stw = _lastStats;
             double speed;
             if (_running && stw != null && stw.Frame > 50 && double.TryParse(stw.Speed.TrimEnd('x'), NumberStyles.Float, Inv, out speed) && speed < 0.97)
-                warn = "Encoder too slow (" + stw.Speed + "): use a GPU codec, a faster preset or a smaller size";
+                warn = "Encoder too slow (" + stw.Speed + ") - try a GPU codec or faster preset";
             string ur;
             long underruns;
             if (_running && _telemetry.TryGetValue("mod/underruns", out ur) && long.TryParse(ur, out underruns))
             {
-                if (_lastUnderruns >= 0 && underruns > _lastUnderruns) warn = "Radio buffer underrun - check USB / CPU load";
+                if (_lastUnderruns >= 0 && underruns > _lastUnderruns) warn = "Radio buffer underrun - check USB / CPU";
                 _lastUnderruns = underruns;
             }
             else _lastUnderruns = -1;
             if (_running && _ptt && !double.IsNaN(_dbb) && _dbb >= 0)
-                warn = "Above the QO-100 beacon (" + (_dbb >= 0 ? "+" : "") + _dbb.ToString("0.0", Inv) + " dBb) - reduce power";
+                warn = "Above beacon (+" + _dbb.ToString("0.0", Inv) + " dBb) - reduce power";
             _light.SetWarning(warn != null, warn);
             ShowDbb();
             _light.Tick();

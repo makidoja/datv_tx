@@ -22,9 +22,9 @@ namespace DatvTx.UI
             ForeColor = Theme.Text;
             Font = Theme.Ui(9f);
             StartPosition = FormStartPosition.CenterParent;
-            Size = new Size(720, 760);
-            MinimumSize = new Size(560, 500);
-            AutoScaleMode = AutoScaleMode.Dpi;
+            Size = new Size(Theme.S(720), Theme.S(760));
+            MinimumSize = new Size(Theme.S(560), Theme.S(500));
+            AutoScaleMode = AutoScaleMode.None;
 
             _grid = new PropertyGrid
             {
@@ -44,14 +44,14 @@ namespace DatvTx.UI
                 CommandsForeColor = Theme.Text
             };
 
-            var bottom = new Panel { Dock = DockStyle.Bottom, Height = 58, BackColor = Theme.Surface, Padding = new Padding(12, 10, 12, 10) };
-            var ok = Theme.Button("SAVE", true); ok.Size = new Size(100, 36); ok.Dock = DockStyle.Right;
-            var cancel = Theme.Button("CANCEL"); cancel.Size = new Size(100, 36); cancel.Dock = DockStyle.Right;
-            var gap = new Panel { Dock = DockStyle.Right, Width = 8 };
-            var callsign = Theme.Button("SEND CALLSIGN TO PLUTO"); callsign.Size = new Size(190, 36); callsign.Dock = DockStyle.Left;
-            var gap2 = new Panel { Dock = DockStyle.Left, Width = 8 };
-            var test = Theme.Button("TEST CONNECTION"); test.Size = new Size(140, 36); test.Dock = DockStyle.Left;
-            _status = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(8, 0, 0, 0) };
+            var bottom = new Panel { Dock = DockStyle.Bottom, Height = Theme.S(58), BackColor = Theme.Surface, Padding = new Padding(Theme.S(12), Theme.S(10), Theme.S(12), Theme.S(10)) };
+            var ok = Theme.Button("SAVE", true); ok.Size = new Size(Theme.S(100), Theme.S(36)); ok.Dock = DockStyle.Right;
+            var cancel = Theme.Button("CANCEL"); cancel.Size = new Size(Theme.S(100), Theme.S(36)); cancel.Dock = DockStyle.Right;
+            var gap = new Panel { Dock = DockStyle.Right, Width = Theme.S(8) };
+            var callsign = Theme.Button("SEND CALLSIGN TO PLUTO"); callsign.Size = new Size(Theme.S(190), Theme.S(36)); callsign.Dock = DockStyle.Left;
+            var gap2 = new Panel { Dock = DockStyle.Left, Width = Theme.S(8) };
+            var test = Theme.Button("TEST CONNECTION"); test.Size = new Size(Theme.S(140), Theme.S(36)); test.Dock = DockStyle.Left;
+            _status = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(Theme.S(8), Theme.S(0), Theme.S(0), Theme.S(0)) };
 
             bottom.Controls.Add(_status);
             bottom.Controls.Add(test);

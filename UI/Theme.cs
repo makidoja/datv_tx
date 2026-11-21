@@ -26,6 +26,10 @@ namespace DatvTx.UI
         public static readonly Color Muted = Color.FromArgb(142, 165, 190);
         public static readonly Color LogBg = Color.FromArgb(9, 24, 39);
 
+        /// <summary>Display scaling (DPI / 96). Set once at start-up; all layout pixel sizes go through S().</summary>
+        public static float Scale = 1f;
+        public static int S(int px) { return (int)Math.Round(px * Scale); }
+
         public static Font Ui(float size) { return new Font("Segoe UI", size); }
         public static Font Semi(float size) { return new Font("Segoe UI Semibold", size); }
 
@@ -45,12 +49,12 @@ namespace DatvTx.UI
 
         public static Panel Card()
         {
-            return new Panel { BackColor = Surface, ForeColor = Text, Padding = new Padding(14, 10, 14, 12) };
+            return new Panel { BackColor = Surface, ForeColor = Text, Padding = new Padding(S(14), S(10), S(14), S(12)) };
         }
 
         public static Label CardTitle(string text)
         {
-            return new Label { Text = text, Dock = DockStyle.Top, Height = 30, ForeColor = Text, Font = Semi(10f), TextAlign = ContentAlignment.MiddleLeft };
+            return new Label { Text = text, Dock = DockStyle.Top, Height = S(30), ForeColor = Text, Font = Semi(10f), TextAlign = ContentAlignment.MiddleLeft };
         }
 
         public static Label FieldLabel(string text)
@@ -91,12 +95,12 @@ namespace DatvTx.UI
                 ForeColor = Text,
                 Font = Ui(9.5f),
                 Dock = DockStyle.Fill,
-                Margin = new Padding(0, 3, 0, 3),
+                Margin = new Padding(S(0), S(3), S(0), S(3)),
                 IntegralHeight = false,
                 MaxDropDownItems = 16
             };
             cb.DrawMode = DrawMode.OwnerDrawFixed;
-            cb.ItemHeight = 20;
+            cb.ItemHeight = S(20);
             cb.DrawItem += DrawComboItem;
             return cb;
         }
@@ -126,7 +130,7 @@ namespace DatvTx.UI
                 BorderStyle = BorderStyle.FixedSingle,
                 Font = Ui(9.5f),
                 Dock = DockStyle.Fill,
-                Margin = new Padding(0, 3, 0, 3)
+                Margin = new Padding(S(0), S(3), S(0), S(3))
             };
         }
 
@@ -139,13 +143,13 @@ namespace DatvTx.UI
                 BorderStyle = BorderStyle.FixedSingle,
                 Font = Ui(9.5f),
                 Dock = DockStyle.Fill,
-                Margin = new Padding(0, 3, 0, 3)
+                Margin = new Padding(S(0), S(3), S(0), S(3))
             };
         }
 
         public static CheckBox Check(string text)
         {
-            return new CheckBox { Text = text, ForeColor = Text, Font = Ui(9.5f), Dock = DockStyle.Fill, FlatStyle = FlatStyle.Flat, Margin = new Padding(0, 3, 0, 3) };
+            return new CheckBox { Text = text, ForeColor = Text, Font = Ui(9.5f), Dock = DockStyle.Fill, FlatStyle = FlatStyle.Flat, Margin = new Padding(S(0), S(3), S(0), S(3)) };
         }
 
         /// <summary>A two-column label/control grid used inside each card.</summary>
@@ -158,9 +162,9 @@ namespace DatvTx.UI
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 2,
                 BackColor = Surface,
-                Padding = new Padding(0, 4, 0, 0)
+                Padding = new Padding(S(0), S(4), S(0), S(0))
             };
-            t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, labelWidth));
+            t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, S(labelWidth)));
             t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             return t;
         }
@@ -169,7 +173,7 @@ namespace DatvTx.UI
         {
             int row = t.RowCount;
             t.RowCount = row + 1;
-            t.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
+            t.RowStyles.Add(new RowStyle(SizeType.Absolute, S(height)));
             t.Controls.Add(FieldLabel(label), 0, row);
             t.Controls.Add(c, 1, row);
         }

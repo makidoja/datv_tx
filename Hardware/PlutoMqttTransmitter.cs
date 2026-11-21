@@ -39,7 +39,7 @@ namespace DatvTx.Hardware
 
         public override string HelpText
         {
-            get { return "Pluto with F5OEO MQTT firmware at " + Settings.PlutoIp + ", command root " + Root + "."; }
+            get { return "F5OEO MQTT firmware  •  " + Root; }
         }
 
         // ------------------------------------------------------------------ connection

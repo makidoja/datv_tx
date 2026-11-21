@@ -20,7 +20,7 @@ namespace DatvTx.UI
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
             BackColor = Theme.Surface;
-            Height = 64;
+            Height = Theme.S(64);
         }
 
         public TxLight State { get { return _state; } set { if (_state != value) { _state = value; Invalidate(); } } }
@@ -46,10 +46,10 @@ namespace DatvTx.UI
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.Clear(BackColor);
 
-            int d = 24;
-            int gap = 9;
+            int d = Theme.S(24);
+            int gap = Theme.S(9);
             int housingW = 3 * d + 4 * gap;
-            var housing = new Rectangle(0, 2, housingW, d + 12);
+            var housing = new Rectangle(0, 2, housingW, d + Theme.S(12));
             using (var path = Rounded(housing, 10))
             using (var b = new SolidBrush(Color.FromArgb(4, 10, 18)))
             using (var p = new Pen(Theme.Border))
@@ -59,9 +59,9 @@ namespace DatvTx.UI
             }
 
             bool amber = _state == TxLight.Standby || (_warn && _blink);
-            DrawLamp(g, new Rectangle(gap, 8, d, d), Color.FromArgb(255, 60, 60), _state == TxLight.OnAir);
-            DrawLamp(g, new Rectangle(2 * gap + d, 8, d, d), Color.FromArgb(255, 184, 40), amber);
-            DrawLamp(g, new Rectangle(3 * gap + 2 * d, 8, d, d), Color.FromArgb(40, 222, 126), _state == TxLight.Ready);
+            DrawLamp(g, new Rectangle(gap, Theme.S(8), d, d), Color.FromArgb(255, 60, 60), _state == TxLight.OnAir);
+            DrawLamp(g, new Rectangle(2 * gap + d, Theme.S(8), d, d), Color.FromArgb(255, 184, 40), amber);
+            DrawLamp(g, new Rectangle(3 * gap + 2 * d, Theme.S(8), d, d), Color.FromArgb(40, 222, 126), _state == TxLight.Ready);
 
             string caption;
             Color colour;
@@ -72,14 +72,25 @@ namespace DatvTx.UI
                 case TxLight.Ready: caption = "READY"; colour = Theme.Green; break;
                 default: caption = "NOT READY"; colour = Theme.Muted; break;
             }
-            int tx = housingW + 10;
-            using (var f = Theme.Semi(11f))
-                TextRenderer.DrawText(g, caption, f, new Rectangle(tx, 2, Width - tx, d + 12), colour,
-                    TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+            int tx = housingW + Theme.S(10);
+            var capRect = new Rectangle(tx, 2, Width - tx, d + Theme.S(12));
+            float size = 11f;
+            Font capFont = Theme.Semi(size);
+            while (size > 7f && TextRenderer.MeasureText(caption, capFont).Width > capRect.Width)
+            {
+                capFont.Dispose();
+                size -= 0.5f;
+                capFont = Theme.Semi(size);
+            }
+            TextRenderer.DrawText(g, caption, capFont, capRect, colour, TextFormatFlags.VerticalCenter | TextFormatFlags.Left);
+            capFont.Dispose();
             if (_warn)
                 using (var f = Theme.Ui(8.5f))
-                    TextRenderer.DrawText(g, _warnText, f, new Rectangle(0, d + 18, Width, Height - d - 18), Theme.Amber,
-                        TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak);
+                {
+                    int top = d + Theme.S(16);
+                    TextRenderer.DrawText(g, _warnText, f, new Rectangle(0, top, Width, Height - top), Theme.Amber,
+                        TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis);
+                }
         }
 
         private static void DrawLamp(Graphics g, Rectangle r, Color c, bool lit)
