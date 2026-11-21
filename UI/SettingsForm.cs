@@ -17,7 +17,7 @@ namespace DatvTx.UI
         {
             Result = working;
             Text = "Settings - " + MainForm.ProductTitle;
-            Icon = Theme.BuildIcon();
+            Icon = Theme.AppIcon();
             BackColor = Theme.Bg;
             ForeColor = Theme.Text;
             Font = Theme.Ui(9f);

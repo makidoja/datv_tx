@@ -13,7 +13,12 @@
     <Description>DATV transmitter control for Pluto (F5OEO), LimeSDR Mini and HackRF</Description>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\DatvTx.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\DatvTx.ico" LogicalName="DatvTx.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <Reference Include="System.Windows.Forms" />

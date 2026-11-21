@@ -63,6 +63,30 @@ jobs:
           [ -f out/libhackrf.dll ] || { echo "libhackrf.dll was not bundled"; exit 1; }
           exit 0
 
+      - name: Build LimeSuite (LimeSDR Mini driver library)
+        shell: pwsh
+        run: |
+          $src = Join-Path $env:RUNNER_TEMP 'LimeSuite'
+          $bld = Join-Path $env:RUNNER_TEMP 'ls-build'
+          git clone --depth 1 --branch v23.11.0 https://github.com/myriadrf/LimeSuite $src
+          cmake -S $src -B $bld -G "Visual Studio 17 2022" -A x64 -DENABLE_GUI=OFF -DENABLE_SOAPY_LMS7=OFF -DENABLE_OCTAVE=OFF -DENABLE_EXAMPLES=OFF -DENABLE_QUICKTEST=OFF -DENABLE_DESKTOP=OFF -DENABLE_API_DOXYGEN=OFF
+          if ($LASTEXITCODE -ne 0) { throw 'LimeSuite configure failed' }
+          cmake --build $bld --config Release --target LimeSuite --parallel
+          if ($LASTEXITCODE -ne 0) { throw 'LimeSuite build failed' }
+          $dll = Get-ChildItem $bld -Recurse -Filter 'LimeSuite.dll' | Select-Object -First 1
+          if (-not $dll) { throw 'LimeSuite.dll not produced' }
+          Copy-Item $dll.FullName 'out/'
+          Write-Host "Bundled $($dll.FullName)"
+
+      - name: Check the modulator loads the bundled LimeSuite library
+        shell: pwsh
+        run: |
+          $o = & 'out/datvtx_mod.exe' --radio lime --sr 333000 --fec 1/2 --port 0 --driver-dir (Resolve-Path out).Path 2>&1 | Out-String
+          Write-Host $o
+          if ($o -match 'could not load') { throw 'datvtx_mod could not load the bundled LimeSuite.dll' }
+          if ($o -notmatch 'no LimeSDR found') { throw 'unexpected modulator output' }
+          exit 0
+
       - name: Check the modulator loads the bundled HackRF library
         shell: pwsh
         run: |
@@ -98,7 +122,7 @@ jobs:
       - name: Verify output
         shell: pwsh
         run: |
-          foreach ($f in 'out/DatvTx.exe','out/datvtx_mod.exe','out/MQTTnet.dll','out/Newtonsoft.Json.dll','out/ffmpeg/ffmpeg.exe','out/ffmpeg/ffplay.exe') {
+          foreach ($f in 'out/DatvTx.exe','out/datvtx_mod.exe','out/LimeSuite.dll','out/libhackrf.dll','out/MQTTnet.dll','out/Newtonsoft.Json.dll','out/ffmpeg/ffmpeg.exe','out/ffmpeg/ffplay.exe') {
             if (-not (Test-Path $f)) { throw "$f missing" }
           }
 

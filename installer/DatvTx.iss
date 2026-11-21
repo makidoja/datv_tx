@@ -17,6 +17,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\installer-output
 OutputBaseFilename=DatvTx-M0CKE-{#MyAppVersion}-Setup
 UninstallDisplayIcon={app}\{#MyAppExeName}
+SetupIconFile=..\Assets\DatvTx.ico
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern

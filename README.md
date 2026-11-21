@@ -21,11 +21,12 @@ modulates DVB-S or DVB-S2 (QPSK, 8PSK, 16APSK, 32APSK, short or long frames, pil
 samples straight to the radio. It pads with null packets so the carrier stays continuous, and if the
 app closes it stops transmitting.
 
-Drivers: the modulator loads **LimeSuite.dll** or **hackrf.dll** at run time. The easiest way to get
-both on Windows is the PothosSDR bundle, which installs to `C:\Program Files\PothosSDR\bin`; the
-modulator looks there automatically. If the DLLs are somewhere else, set *Settings → SDR driver folder*.
+Drivers: the installer includes **LimeSuite.dll** (LimeSuite 23.11, built from source) and **libhackrf.dll**
+with libusb, so no separate SDR software is needed. Only the Windows USB drivers are required (below).
+To use different DLLs, set *Settings → SDR driver folder*.
 
-- **LimeSDR Mini:** also needs its USB driver (FTDI D3XX, from the LimeSuite/PothosSDR install).
+- **LimeSDR Mini:** needs the FTDI D3XX (FT601) USB driver. If Windows doesn't show it as a working
+  device, install the D3XX driver from FTDI's website.
   TX calibration runs at START (it can be switched off in Settings). The app's gain of 0 dB is the
   full normalised TX gain and −50 dB is the minimum. DVB-S2 is practical up to about 2 MS.
 - **HackRF One:** if Windows can't see it, plug it in, run **Zadig**, choose *Options → List All

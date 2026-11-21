@@ -87,34 +87,19 @@ namespace DatvTx.UI
 
         public static ComboBox Combo(bool editable = false)
         {
-            var cb = new ComboBox
+            var cb = new DarkCombo
             {
                 DropDownStyle = editable ? ComboBoxStyle.DropDown : ComboBoxStyle.DropDownList,
-                FlatStyle = FlatStyle.Flat,
                 BackColor = Surface2,
                 ForeColor = Text,
                 Font = Ui(9.5f),
                 Dock = DockStyle.Fill,
-                Margin = new Padding(S(0), S(3), S(0), S(3)),
+                Margin = new Padding(0, S(3), 0, S(3)),
                 IntegralHeight = false,
                 MaxDropDownItems = 16
             };
-            cb.DrawMode = DrawMode.OwnerDrawFixed;
             cb.ItemHeight = S(20);
-            cb.DrawItem += DrawComboItem;
             return cb;
-        }
-
-        private static void DrawComboItem(object sender, DrawItemEventArgs e)
-        {
-            var cb = (ComboBox)sender;
-            if (e.Index < 0) return;
-            bool selected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
-            using (var bg = new SolidBrush(selected ? Accent : Surface2))
-                e.Graphics.FillRectangle(bg, e.Bounds);
-            TextRenderer.DrawText(e.Graphics, cb.GetItemText(cb.Items[e.Index]), cb.Font,
-                new Rectangle(e.Bounds.X + 4, e.Bounds.Y, e.Bounds.Width - 4, e.Bounds.Height), Text,
-                TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
         }
 
         public static NumericUpDown Number(decimal min, decimal max, decimal step, int decimals)
@@ -178,7 +163,22 @@ namespace DatvTx.UI
             t.Controls.Add(c, 1, row);
         }
 
-        /// <summary>Round app icon in the OpenTuner style, with a transmitting mast instead of a dish.</summary>
+        private static Icon _appIcon;
+
+        /// <summary>The app logo (multi-size .ico embedded in the program), for windows and the taskbar.</summary>
+        public static Icon AppIcon()
+        {
+            if (_appIcon != null) return _appIcon;
+            try
+            {
+                using (var s = typeof(Theme).Assembly.GetManifestResourceStream("DatvTx.ico"))
+                    if (s != null) _appIcon = new Icon(s);
+            }
+            catch { }
+            return _appIcon ?? (_appIcon = BuildIcon());
+        }
+
+        /// <summary>Fallback: the logo drawn in code.</summary>
         public static Icon BuildIcon()
         {
             using (var bmp = new Bitmap(64, 64))

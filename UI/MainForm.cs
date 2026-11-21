@@ -83,7 +83,7 @@ namespace DatvTx.UI
             using (var g = CreateGraphics()) Theme.Scale = Math.Max(1f, g.DpiX / 96f);
 
             Text = ProductTitle;
-            Icon = Theme.BuildIcon();
+            Icon = Theme.AppIcon();
             BackColor = Theme.Bg;
             ForeColor = Theme.Text;
             Font = Theme.Ui(9f);
