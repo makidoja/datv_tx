@@ -320,7 +320,7 @@ namespace DatvTx.UI
             Theme.AddRow(g2, "Codec", _cmbCodec);
 
             _cmbPreset = Theme.Combo();
-            _cmbPreset.Items.AddRange(DvbCalc.Presets.Cast<object>().ToArray());
+            _cmbPreset.Items.AddRange(Codecs.Presets.Cast<object>().ToArray());
             Theme.AddRow(g2, "Speed preset", _cmbPreset);
 
             _cmbSize = Theme.Combo(true);
