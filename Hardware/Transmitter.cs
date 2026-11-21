@@ -25,7 +25,6 @@ namespace DatvTx.Hardware
         /// <summary>True if this back end needs a connection before use (shows the CONNECT button).</summary>
         public virtual bool NeedsConnection { get { return false; } }
 
-        public virtual bool SupportsLongmynd { get { return false; } }
 
         public virtual bool IsConnected { get { return !NeedsConnection; } }
 
@@ -64,10 +63,6 @@ namespace DatvTx.Hardware
 
         /// <summary>Roll-off values this transmitter supports (first = default).</summary>
         public virtual double[] RollOffs { get { return new[] { 0.20, 0.25, 0.35 }; } }
-
-        public virtual Task StartLongmyndAsync(TxParams p) { return Task.FromResult(0); }
-        public virtual Task SetLongmyndAsync(TxParams p) { return Task.FromResult(0); }
-        public virtual Task StopLongmyndAsync() { return Task.FromResult(0); }
 
         /// <summary>One-off setup (SETUP.bat): tell the Pluto its callsign.</summary>
         public virtual Task SendCallsignAsync() { return Task.FromResult(0); }

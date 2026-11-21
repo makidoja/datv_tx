@@ -8,7 +8,7 @@ calculations and Pluto MQTT commands, without the console menus.
 
 | Transmitter | How it works | Control from the app |
 |---|---|---|
-| ADALM-Pluto, F5OEO MQTT firmware | ffmpeg → UDP to the Pluto, settings over MQTT | Everything: frequency, SR, FEC, gain, PTT, roll-off, digital gain, Longmynd RX, relay |
+| ADALM-Pluto, F5OEO MQTT firmware | ffmpeg → UDP to the Pluto, settings over MQTT | Everything: frequency, SR, FEC, power, PTT, roll-off, digital gain |
 | ADALM-Pluto, older F5OEO firmware | ffmpeg → UDP to the Pluto | Stream only. Set the radio up in its web page |
 | LimeSDR Mini | ffmpeg → UDP → built-in modulator (`datvtx_mod.exe`) → LimeSuite | Frequency, gain and PTT live; SR, FEC and mode set at START |
 | HackRF One | ffmpeg → UDP → built-in modulator (`datvtx_mod.exe`) → libhackrf | Frequency, gain and PTT live; SR, FEC and mode set at START |
@@ -45,15 +45,15 @@ stay under 85% of full scale in every mode. **First RF test: use a dummy load an
 3. **DVB tab**: set the mode, SR, FEC and the video/audio settings. The target TS and video bitrates update as you change them.
    **QO-100 spectrum**: the BATC wideband spectrum is shown live. Click a channel block (125 KS, 333 KS or 1 MS rows)
    to set the TX frequency and symbol rate, or click the trace to pick the nearest 250 kHz channel.
-   Set the power with the slider. It can't go above the power limit set in Settings.
+   Set the power with the slider (−50 to 0 dB). You can set a lower ceiling in Settings → Power limit to protect a PA.
 4. **START** starts the encoder with the carrier muted (amber light: STANDBY). Press **PTT** to go on air
-   (red light: ON AIR). Power, frequency, roll-off, digital gain and the RX frequency can be changed live.
+   (red light: ON AIR). Power, frequency, roll-off and digital gain can be changed live.
    The amber light flashes if the encoder can't keep up or the radio's buffer runs dry.
 5. **MEMORIES**: store named set-ups (frequency, mode, codec, power) and recall them with a double-click.
    Any old profiles 1-3 are moved into memories automatically. The last run is restored when the app starts.
 
-Run modes (in Settings): *Encode* (normal), *Control only* (DATV-NotSoEasy Light: OBS or another
-encoder streams to the Pluto itself), *Relay* (Longmynd RX re-transmitted).
+Run modes (in Settings): *Encode* (normal) and *Control only* (DATV-NotSoEasy Light: OBS or another
+encoder streams to the radio itself).
 
 ## Building
 Push to `main` and the GitHub Actions workflow builds `DatvTx.exe`, bundles a GPL FFmpeg build

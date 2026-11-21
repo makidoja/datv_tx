@@ -21,8 +21,7 @@ namespace DatvTx.Core
     public enum RunMode
     {
         [Description("Encode and transmit")] Encode,
-        [Description("Control radio only (external encoder, e.g. OBS)")] ControlOnly,
-        [Description("Relay (Longmynd RX re-transmitted)")] Relay
+        [Description("Control radio only (external encoder, e.g. OBS)")] ControlOnly
     }
 
     public enum InputType { Capture, NetworkUdp, NetworkRtmp, File }
@@ -48,14 +47,14 @@ namespace DatvTx.Core
         [JsonConverter(typeof(StringEnumConverter))]
         public HardwareType Hardware { get; set; } = HardwareType.PlutoF5oeoMqtt;
 
-        [Category("2 Hardware"), DisplayName("Run mode"), Description("Encode: this app encodes and sends the stream. Control only: an external encoder (OBS etc.) sends the stream, this app only steers the Pluto. Relay: Pluto Longmynd receive is re-transmitted.")]
+        [Category("2 Hardware"), DisplayName("Run mode"), Description("Encode: this app encodes and sends the stream. Control only: an external encoder (OBS etc.) sends the stream, this app only steers the radio.")]
         [JsonConverter(typeof(StringEnumConverter))]
         public RunMode Mode { get; set; } = RunMode.Encode;
 
         [Category("2 Hardware"), DisplayName("Pluto IP address")]
         public string PlutoIp { get; set; } = "192.168.2.1";
 
-        [Category("2 Hardware"), DisplayName("Pluto stream port"), Description("UDP port the Pluto listens on for the transport stream (DATV-NotSoEasy default 8282; use 1234 for relay).")]
+        [Category("2 Hardware"), DisplayName("Pluto stream port"), Description("UDP port the Pluto listens on for the transport stream (DATV-NotSoEasy default 8282).")]
         public int PlutoPort { get; set; } = 8282;
 
         [Category("2 Hardware"), DisplayName("Pluto MQTT port")]
@@ -72,8 +71,8 @@ namespace DatvTx.Core
         public string LocalTestUrl { get; set; } = "udp://230.0.0.10:10000";
 
         // ---------------- Pluto modulator (F5OEO MQTT) ----------------
-        [Category("3 Pluto modulator"), DisplayName("Power limit (dB)"), Description("Highest gain allowed. Gain cannot be set above this.")]
-        public double PowerLimitDb { get; set; } = -10;
+        [Category("2 Hardware"), DisplayName("Power limit (dB)"), Description("Top of the power slider. 0 dB = full output. Set lower to protect a PA from overdrive.")]
+        public double PowerLimitDb { get; set; } = 0;
 
         [Category("3 Pluto modulator"), DisplayName("Fetch TS bitrate from Pluto"), Description("Ask the Pluto for the exact TS bitrate instead of calculating it (most accurate).")]
         public bool FetchTsBitrate { get; set; } = true;
@@ -124,23 +123,7 @@ namespace DatvTx.Core
         [Category("3b LimeSDR / HackRF"), DisplayName("Lime calibration at start"), Description("Run LimeSuite TX calibration (reduces carrier leak and image).")]
         public bool LimeCalibrate { get; set; } = true;
 
-        // ---------------- Longmynd receive (Pluto + MiniTiouner) ----------------
-        [Category("4 Longmynd receive"), DisplayName("LNB offset (MHz)")]
-        public double RxOffsetMHz { get; set; } = 9750;
-
-        [Category("4 Longmynd receive"), DisplayName("LNB polarisation"), Description("v = 12 V, h = 18 V, n = no voltage.")]
-        public string LnbPolarisation { get; set; } = "h";
-
-        [Category("4 Longmynd receive"), DisplayName("Tuner port"), Description("0 = top, 1 = bottom.")]
-        public int TunerPort { get; set; } = 0;
-
-        [Category("4 Longmynd receive"), DisplayName("Output IP"), Description("Where Longmynd sends the received stream (this PC or a multicast address).")]
-        public string RxOutputIp { get; set; } = "230.0.0.2";
-
-        [Category("4 Longmynd receive"), DisplayName("Output port")]
-        public int RxOutputPort { get; set; } = 1234;
-
-        [Category("4 Longmynd receive"), DisplayName("Player")]
+        [Category("5 Encoder"), DisplayName("Monitor player"), Description("Player used by MONITOR STREAM.")]
         [JsonConverter(typeof(StringEnumConverter))]
         public RxPlayer Player { get; set; } = RxPlayer.Ffplay;
 
@@ -206,6 +189,7 @@ namespace DatvTx.Core
         [Browsable(false)] public List<TxParams> Profiles { get; set; } = new List<TxParams>();
         [Browsable(false)] public List<TxMemory> Memories { get; set; } = new List<TxMemory>();
         [Browsable(false)] public bool ShowSpectrum { get; set; } = true;
+        [Browsable(false)] public int SettingsVersion { get; set; } = 0;
 
         [Browsable(false), JsonIgnore]
         public string EffectiveCmdRoot
@@ -271,6 +255,12 @@ namespace DatvTx.Core
             if (LastRun == null) LastRun = new TxParams();
             if (Profiles == null) Profiles = new List<TxParams>();
             while (Profiles.Count < 3) Profiles.Add(null);
+            if (SettingsVersion < 2)
+            {
+                // v0.1 used DATV-NotSoEasy's PWRLIM of -10 dB; the slider now goes to 0 dB by default.
+                if (PowerLimitDb == -10) PowerLimitDb = 0;
+                SettingsVersion = 2;
+            }
             if (Memories == null) Memories = new List<TxMemory>();
             if (Memories.Count == 0)
                 for (int i = 0; i < Profiles.Count; i++)
@@ -316,11 +306,6 @@ namespace DatvTx.Core
         public double RollOff { get; set; } = 0.20;
         public double TxFrequencyMHz { get; set; } = 2403.25;
         public double GainDb { get; set; } = -20;
-
-        // Longmynd receive
-        public bool RxEnabled { get; set; } = false;
-        public double RxFrequencyMHz { get; set; } = 10491.50;
-        public int RxSymbolRateKs { get; set; } = 1500;
 
         public TxParams Clone()
         {

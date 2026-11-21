@@ -20,7 +20,6 @@ namespace DatvTx.Hardware
         private IMqttClient _client;
         private readonly ConcurrentDictionary<string, string> _latest = new ConcurrentDictionary<string, string>();
         private TaskCompletionSource<string> _bitrateWaiter;
-        private bool _longmyndOn;
         private bool _wasConnected;
 
         public PlutoMqttTransmitter(AppSettings s) : base(s) { }
@@ -29,7 +28,6 @@ namespace DatvTx.Hardware
         public override bool SupportsPtt { get { return true; } }
         public override bool SupportsLiveControl { get { return true; } }
         public override bool NeedsConnection { get { return true; } }
-        public override bool SupportsLongmynd { get { return true; } }
         public override bool IsConnected { get { return _client != null && _client.IsConnected; } }
 
         private string Root { get { return Settings.EffectiveCmdRoot; } }
@@ -177,11 +175,10 @@ namespace DatvTx.Hardware
 
         public override async Task ConfigureAsync(TxParams p, bool pttOn)
         {
-            bool variable = Settings.VariableFec || Settings.Mode == RunMode.Relay;
+            bool variable = Settings.VariableFec;
             string fec = variable ? DvbCalc.MinFec(p.Constellation) : p.Fec;
-            int port = Settings.Mode == RunMode.Relay ? 1234 : Settings.PlutoPort;
 
-            await Cmd("tx/dvbs2/tssourceaddress", Settings.PlutoIp + ":" + port);
+            await Cmd("tx/dvbs2/tssourceaddress", Settings.PlutoIp + ":" + Settings.PlutoPort);
             await Cmd("tx/gain", F(Math.Min(p.GainDb, Settings.PowerLimitDb)));
             await Cmd("tx/mute", pttOn ? "0" : "1");
             await Cmd("tx/frequency", Hz(p.TxFrequencyMHz));
@@ -199,8 +196,6 @@ namespace DatvTx.Hardware
             await Cmd("tx/dvbs2/fecrange", Settings.FecRange.ToString(Inv));
             await Cmd("tx/dvbs2/tssourcemode", Settings.TsSourceMode.ToString(Inv));
             await Cmd("tx/dvbs2/tssourcefile", Settings.TsSourceFile ?? "");
-            await Pub("cmd/longmynd/polar", Settings.LnbPolarisation);
-            await Pub("cmd/longmynd/swport", Settings.TunerPort.ToString(Inv));
             await Cmd("tx/dvbs2/firfilter", FirFilter(p.RollOff));
             RaiseLog("Pluto configured: " + p.Summary() + (variable ? " (variable FEC from " + fec + ")" : ""));
         }
@@ -211,7 +206,6 @@ namespace DatvTx.Hardware
             try
             {
                 await Cmd("tx/mute", "1");
-                if (_longmyndOn) await StopLongmyndAsync();
                 if (Settings.RebootOnStop) await Cmd("system/reboot", "1");
                 RaiseLog("Pluto muted" + (Settings.RebootOnStop ? " and rebooting." : "."));
             }
@@ -240,38 +234,6 @@ namespace DatvTx.Hardware
         public override double[] RollOffs { get { return new[] { 0.20, 0.15 }; } }
 
         private static string FirFilter(double rollOff) { return rollOff < 0.175 ? "1" : "0"; }
-
-        // ------------------------------------------------------------------ Longmynd receive
-
-        private long LongmyndKHz(TxParams p)
-        {
-            return (long)Math.Round((p.RxFrequencyMHz - Settings.RxOffsetMHz) * 1000.0);
-        }
-
-        public override async Task StartLongmyndAsync(TxParams p)
-        {
-            string tsip = Settings.Mode == RunMode.Relay ? Settings.PlutoIp : Settings.RxOutputIp;
-            await Cmd("system/longmynd", "on");
-            _longmyndOn = true;
-            RaiseLog("Longmynd starting, waiting 10 s...");
-            await Task.Delay(10000);
-            await Pub("cmd/longmynd/frequency", LongmyndKHz(p).ToString(Inv));
-            await Pub("cmd/longmynd/sr", p.RxSymbolRateKs.ToString(Inv));
-            await Pub("cmd/longmynd/tsip", tsip);
-            RaiseLog("Longmynd RX " + F(p.RxFrequencyMHz) + " MHz (" + LongmyndKHz(p) + " kHz IF), " + p.RxSymbolRateKs + " KS -> " + tsip);
-        }
-
-        public override async Task SetLongmyndAsync(TxParams p)
-        {
-            await Pub("cmd/longmynd/frequency", LongmyndKHz(p).ToString(Inv));
-            await Pub("cmd/longmynd/sr", p.RxSymbolRateKs.ToString(Inv));
-        }
-
-        public override async Task StopLongmyndAsync()
-        {
-            await Cmd("system/longmynd", "off");
-            _longmyndOn = false;
-        }
 
         public override async Task SendCallsignAsync()
         {

@@ -66,9 +66,6 @@ namespace DatvTx.UI
         private Button _btnStart, _btnPtt, _btnMonitor;
 
         // receive
-        private CheckBox _chkRx;
-        private ComboBox _cmbRxFreq, _cmbRxSr;
-        private Button _btnPlayer;
 
         private TextBox _log;
         private readonly List<Control> _lockWhileRunning = new List<Control>();
@@ -217,7 +214,6 @@ namespace DatvTx.UI
             AddTab(strip, host, "DVB", BuildDvbPage());
             AddTab(strip, host, "SOURCE", BuildSourcePage());
             AddTab(strip, host, "MEMORIES", BuildMemoriesPage());
-            AddTab(strip, host, "RECEIVE", BuildReceivePage());
             AddTab(strip, host, "STATUS", BuildStatusPage());
 
             card.Controls.Add(host);
@@ -470,46 +466,6 @@ namespace DatvTx.UI
                 p.TxFrequencyMHz, p.DvbS2 ? "DVB-S2" : "DVB-S", p.Constellation.ToUpperInvariant(), p.SymbolRateKs, p.Fec, p.Codec, p.ImageSize, p.Fps, p.GainDb);
             using (var f = Theme.Ui(8.5f))
                 TextRenderer.DrawText(e.Graphics, detail, f, new Point(e.Bounds.X + 8, e.Bounds.Y + 21), sel ? Theme.Text : Theme.Muted);
-        }
-
-        private Control BuildReceivePage()
-        {
-            var page = new Panel { BackColor = Theme.Surface };
-            var grid = Theme.FieldGrid(140);
-
-            _chkRx = Theme.Check("Start Longmynd receive with TX");
-            Theme.AddRow(grid, "", _chkRx);
-
-            _cmbRxFreq = Theme.Combo(true);
-            _cmbRxFreq.Items.Add("10491.50   (QO-100 beacon)");
-            for (int i = 0; i < 28; i++) _cmbRxFreq.Items.Add((10492.75 + i * 0.25).ToString("0.00", Inv));
-            _cmbRxFreq.SelectionChangeCommitted += (s, e) => BeginInvoke((Action)(async () => await RxCommitted()));
-            Theme.AddRow(grid, "RX frequency (MHz)", _cmbRxFreq);
-
-            _cmbRxSr = Theme.Combo(true);
-            foreach (int sr in DvbCalc.SymbolRates) _cmbRxSr.Items.Add(sr.ToString(Inv));
-            _cmbRxSr.SelectionChangeCommitted += (s, e) => BeginInvoke((Action)(async () => await RxCommitted()));
-            Theme.AddRow(grid, "RX symbol rate (KS)", _cmbRxSr);
-
-            _btnPlayer = Theme.Button("OPEN RX PLAYER");
-            _btnPlayer.Dock = DockStyle.Fill; _btnPlayer.Margin = new Padding(0, 4, 0, 4);
-            _btnPlayer.Click += (s, e) => OpenRxPlayer();
-            Theme.AddRow(grid, "", _btnPlayer, 40);
-
-            var hint = new Label
-            {
-                Dock = DockStyle.Top,
-                Height = 60,
-                ForeColor = Theme.Muted,
-                Font = Theme.Ui(8.5f),
-                Padding = new Padding(0, 10, 0, 0),
-                Text = "Needs a Pluto with F5OEO firmware and a MiniTiouner on a powered USB hub. LNB offset, polarisation, tuner port\nand the output address are in Settings → Longmynd receive. Relay mode is under Settings → Run mode."
-            };
-            page.Controls.Add(hint);
-            page.Controls.Add(grid);
-            page.Controls.Add(GroupTitle("PLUTO LONGMYND RECEIVE"));
-            _lockWhileRunning.Add(_chkRx);
-            return page;
         }
 
         private Control BuildStatusPage()
@@ -799,10 +755,7 @@ namespace DatvTx.UI
                 Pilots = _chkPilots.Checked,
                 RollOff = SelectedRollOff(),
                 TxFrequencyMHz = FirstNumber(_cmbFreq.Text, 2403.25),
-                GainDb = SliderGainDb(),
-                RxEnabled = _chkRx.Checked,
-                RxFrequencyMHz = FirstNumber(_cmbRxFreq.Text, 10491.5),
-                RxSymbolRateKs = (int)FirstNumber(_cmbRxSr.Text, 1500)
+                GainDb = SliderGainDb()
             };
             return p;
         }
@@ -837,9 +790,6 @@ namespace DatvTx.UI
                 SetGainSlider(p.GainDb);
                 _numDGain.Value = 0;
                 _numDGain.Enabled = p.Constellation == "qpsk";
-                _chkRx.Checked = p.RxEnabled;
-                SelectOrText(_cmbRxFreq, p.RxFrequencyMHz.ToString("0.00", Inv));
-                SelectOrText(_cmbRxSr, p.RxSymbolRateKs.ToString(Inv));
             }
             finally { _loading = false; }
             UpdateInputVisibility();
@@ -979,7 +929,7 @@ namespace DatvTx.UI
             }
             else
             {
-                _btnStart.Text = _s.Mode == RunMode.Encode ? "START" : _s.Mode == RunMode.Relay ? "START RELAY" : "START CONTROL";
+                _btnStart.Text = _s.Mode == RunMode.Encode ? "START" : "START CONTROL";
                 Theme.Paint(_btnStart, Theme.Accent, Theme.Accent);
             }
 
@@ -991,11 +941,6 @@ namespace DatvTx.UI
             foreach (var c in _lockWhileRunning) c.Enabled = !_running && !_busy;
             _btnSettings.Enabled = !_running && !_busy;
             _btnMonitor.Enabled = _s.Hardware == HardwareType.LocalTest;
-            bool rx = _tx.SupportsLongmynd;
-            _chkRx.Enabled = rx && !_running;
-            _cmbRxFreq.Enabled = rx;
-            _cmbRxSr.Enabled = rx;
-            _btnPlayer.Enabled = rx;
             UpdateInputVisibility();
         }
 
@@ -1019,14 +964,6 @@ namespace DatvTx.UI
             }
         }
 
-        private async Task RxCommitted()
-        {
-            if (!CanLive() || _active == null || !_active.RxEnabled) return;
-            _active.RxFrequencyMHz = FirstNumber(_cmbRxFreq.Text, _active.RxFrequencyMHz);
-            _active.RxSymbolRateKs = (int)FirstNumber(_cmbRxSr.Text, _active.RxSymbolRateKs);
-            await Live(() => _tx.SetLongmyndAsync(_active), "Longmynd " + _active.RxFrequencyMHz.ToString("0.00", Inv) + " MHz " + _active.RxSymbolRateKs + " KS");
-        }
-
         // ================================================================== start / stop
 
         private string Validate(TxParams p)
@@ -1043,7 +980,6 @@ namespace DatvTx.UI
                 if (!System.Text.RegularExpressions.Regex.IsMatch(p.ImageSize, @"^\d+x\d+$")) return "Resolution must look like 1280x720.";
             }
             if (_s.Mode == RunMode.ControlOnly && !(_tx is PlutoMqttTransmitter || _tx is SdrHelperTransmitter)) return "Control-only mode needs a Pluto with F5OEO MQTT firmware, a LimeSDR or a HackRF.";
-            if (_s.Mode == RunMode.Relay && !_tx.SupportsLongmynd) return "Relay mode needs a Pluto with Longmynd.";
             return null;
         }
 
@@ -1078,12 +1014,6 @@ namespace DatvTx.UI
                 await _tx.ConfigureAsync(p, false);
                 _ptt = false;
 
-                if ((p.RxEnabled || _s.Mode == RunMode.Relay) && _tx.SupportsLongmynd)
-                {
-                    await _tx.StartLongmyndAsync(p);
-                    if (_s.Mode != RunMode.Relay) OpenRxPlayer();
-                }
-
                 if (_s.Mode == RunMode.Encode)
                 {
                     string url = _tx.StreamUrl();
@@ -1098,7 +1028,7 @@ namespace DatvTx.UI
                 }
                 else
                 {
-                    AppendLog(_s.Mode == RunMode.Relay ? "Relay running." : "Control mode: start your external encoder (e.g. OBS) sending MPEG-TS to " + _tx.StreamUrl().Split('?')[0] + " at no more than " + plan.TsBitrateK.ToString("0", Inv) + " kbit/s.");
+                    AppendLog("Control mode: start your external encoder (e.g. OBS) sending MPEG-TS to " + _tx.StreamUrl().Split('?')[0] + " at no more than " + plan.TsBitrateK.ToString("0", Inv) + " kbit/s.");
                 }
 
                 _active = p;
@@ -1167,12 +1097,6 @@ namespace DatvTx.UI
         }
 
         // ================================================================== players
-
-        private void OpenRxPlayer()
-        {
-            string url = "udp://@" + _s.RxOutputIp + ":" + _s.RxOutputPort;
-            StartPlayer(url, "Longmynd RX");
-        }
 
         private void OpenMonitor()
         {
@@ -1309,7 +1233,7 @@ namespace DatvTx.UI
                 _lblStats.Text = string.Format(Inv, "Encoder  {0:0.#} fps   {1}   speed {2}{3}", st.Fps, st.Bitrate, st.Speed, st.Dropped > 0 ? "   dropped " + st.Dropped : "");
                 _lblStats.ForeColor = st.Speed.StartsWith("0.", StringComparison.Ordinal) ? Theme.Amber : Theme.Muted;
             }
-            else if (_running && _s.Mode != RunMode.Encode) _lblStats.Text = _s.Mode == RunMode.Relay ? "Relay running" : "Control mode running";
+            else if (_running && _s.Mode != RunMode.Encode) _lblStats.Text = "Control mode running";
 
             if (_telemetry.Count > 0)
             {
