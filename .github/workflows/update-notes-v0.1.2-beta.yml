@@ -1,0 +1,21 @@
+name: Update v0.1.2-beta release notes
+
+# Committing this file replaces the v0.1.2-beta release notes with RELEASE_NOTES.md.
+on:
+  push:
+    branches: [ main ]
+    paths: [ '.github/workflows/update-notes-v0.1.2-beta.yml' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit v0.1.2-beta --repo "$GITHUB_REPOSITORY" --notes-file RELEASE_NOTES.md
