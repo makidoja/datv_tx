@@ -32,6 +32,19 @@ namespace DatvTx.UI
 
         private static readonly Color DisabledBack = Color.FromArgb(14, 30, 48);
 
+        [DllImport("gdi32.dll")] private static extern int SetTextColor(IntPtr hdc, int color);
+        [DllImport("gdi32.dll")] private static extern int SetBkColor(IntPtr hdc, int color);
+        [DllImport("gdi32.dll")] private static extern IntPtr CreateSolidBrush(int color);
+
+        private static IntPtr _enabledBrush, _disabledBrush;
+
+        private static IntPtr Brush(bool enabled)
+        {
+            if (_enabledBrush == IntPtr.Zero) _enabledBrush = CreateSolidBrush(ColorTranslator.ToWin32(Theme.Surface2));
+            if (_disabledBrush == IntPtr.Zero) _disabledBrush = CreateSolidBrush(ColorTranslator.ToWin32(DisabledBack));
+            return enabled ? _enabledBrush : _disabledBrush;
+        }
+
         public DarkCombo()
         {
             FlatStyle = FlatStyle.Flat;
@@ -40,6 +53,16 @@ namespace DatvTx.UI
 
         protected override void WndProc(ref Message m)
         {
+            // The edit box inside an editable combo asks its parent (this combo) for colours.
+            // When disabled Windows would paint it white; answer with the dark theme instead.
+            const int WM_CTLCOLOREDIT = 0x0133, WM_CTLCOLORSTATIC = 0x0138;
+            if (m.Msg == WM_CTLCOLOREDIT || m.Msg == WM_CTLCOLORSTATIC)
+            {
+                SetTextColor(m.WParam, ColorTranslator.ToWin32(Enabled ? Theme.Text : Theme.Muted));
+                SetBkColor(m.WParam, ColorTranslator.ToWin32(Enabled ? Theme.Surface2 : DisabledBack));
+                m.Result = Brush(Enabled);
+                return;
+            }
             base.WndProc(ref m);
             const int WM_PAINT = 0x000F, WM_ENABLE = 0x000A, WM_SETFOCUS = 0x0007, WM_KILLFOCUS = 0x0008;
             if (m.Msg == WM_PAINT || m.Msg == WM_ENABLE || m.Msg == WM_SETFOCUS || m.Msg == WM_KILLFOCUS)
@@ -48,7 +71,13 @@ namespace DatvTx.UI
 
         protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
         protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
-        protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Invalidate(); }
+        protected override void OnEnabledChanged(EventArgs e)
+        {
+            base.OnEnabledChanged(e);
+            if (DropDownStyle == ComboBoxStyle.DropDown && IsHandleCreated)
+                try { SelectionLength = 0; } catch { }
+            Invalidate(true);
+        }
 
         protected override void OnSelectedIndexChanged(EventArgs e)
         {

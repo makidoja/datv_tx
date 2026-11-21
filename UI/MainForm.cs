@@ -39,7 +39,7 @@ namespace DatvTx.UI
         private Panel _spectrumCard;
         private TableLayoutPanel _root, _body;
         private Control _header, _tabsCard, _logCard, _txCard;
-        private Button _btnCompact;
+        private Button _btnCompact, _btnTop;
         private bool _compact;
 
         // tabs
@@ -98,6 +98,7 @@ namespace DatvTx.UI
             RefreshMemories();
             ShowSpectrum(_s.ShowSpectrum);
             if (_s.CompactMode) SetCompact(true);
+            ApplyTopMost();
 
             _ffmpeg.Log += l => UI(() => AppendLog(l));
             _ffmpeg.Stats += st => { _lastStats = st; };
@@ -178,6 +179,15 @@ namespace DatvTx.UI
             if (show) _spectrum.Start(); else _spectrum.Stop();
         }
 
+        /// <summary>Always on top: the ON TOP button, or the compact-window setting.</summary>
+        private void ApplyTopMost()
+        {
+            bool top = _s.AlwaysOnTop || (_compact && _s.CompactOnTop);
+            TopMost = top;
+            if (_btnTop != null)
+                Theme.Paint(_btnTop, _s.AlwaysOnTop ? Theme.Accent : Theme.Surface2, _s.AlwaysOnTop ? Theme.Accent : Theme.Border);
+        }
+
         /// <summary>Compact mode: only the transmit panel, in a small window.</summary>
         private void SetCompact(bool compact)
         {
@@ -203,7 +213,7 @@ namespace DatvTx.UI
             _txCard.Margin = compact ? new Padding(S(0)) : new Padding(S(6), S(0), S(0), S(0));
             ShowSpectrum(_s.ShowSpectrum); // hides the spectrum card but keeps the feed (dBb) running
             _btnCompact.Text = compact ? "FULL VIEW" : "COMPACT";
-            TopMost = compact && _s.CompactOnTop;
+            ApplyTopMost();
 
             if (WindowState != FormWindowState.Normal) WindowState = FormWindowState.Normal;
             MinimumSize = compact ? new Size(S(300), S(560)) : new Size(S(960), S(820));
@@ -632,7 +642,20 @@ namespace DatvTx.UI
             _btnCompact.Font = Theme.Semi(8f);
             _btnCompact.Margin = new Padding(S(0));
             _btnCompact.Click += (s, e) => SetCompact(!_compact);
+            _btnTop = Theme.Button("ON TOP");
+            _btnTop.Dock = DockStyle.Right;
+            _btnTop.Width = S(66);
+            _btnTop.Font = Theme.Semi(8f);
+            _btnTop.Click += (s, e) =>
+            {
+                _s.AlwaysOnTop = !_s.AlwaysOnTop;
+                ApplyTopMost();
+                try { _s.Save(); } catch { }
+            };
+            var gap = new Panel { Dock = DockStyle.Right, Width = S(6), BackColor = Theme.Surface };
             titleRow.Controls.Add(title);
+            titleRow.Controls.Add(_btnTop);
+            titleRow.Controls.Add(gap);
             titleRow.Controls.Add(_btnCompact);
             card.Controls.Add(titleRow);
             return card;

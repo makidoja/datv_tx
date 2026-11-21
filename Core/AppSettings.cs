@@ -196,6 +196,8 @@ namespace DatvTx.Core
         [Browsable(false)] public int CompactWidth { get; set; } = 320;
         [Browsable(false)] public int CompactHeight { get; set; } = 660;
 
+        [Browsable(false)] public bool AlwaysOnTop { get; set; } = false;
+
         [Category("1 Station"), DisplayName("Compact window on top"), Description("Keep the compact transmit window above other windows (e.g. OBS).")]
         public bool CompactOnTop { get; set; } = true;
 

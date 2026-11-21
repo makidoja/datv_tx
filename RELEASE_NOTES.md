@@ -1,12 +1,16 @@
-## DATV TX (M0CKE) v0.1.0 beta
+## DATV TX (M0CKE) v0.1.1 beta
+
+**Fixed in 0.1.1:** editable fields (symbol rate, image size, frame rate) no longer turn white while transmitting; they stay dark with greyed text.
+**New in 0.1.1:** ON TOP button on the transmit panel keeps the window above other programs (full or compact view).
+
 
 The first beta of a Windows DATV transmitter for QO-100 and terrestrial use. It's a GUI rewrite of
 DL5OCD's **DATV-NotSoEasy** batch scripts in the OpenTuner M0CKE style: the same encoder settings and
 bitrate maths, without the console menus.
 
 ### Downloads
-- **DatvTx-M0CKE-0.1.0-beta-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
-- **DatvTx-M0CKE-0.1.0-beta-portable.zip**: the same files, to unzip and run.
+- **DatvTx-M0CKE-0.1.1-beta-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
+- **DatvTx-M0CKE-0.1.1-beta-portable.zip**: the same files, to unzip and run.
 
 Both include FFmpeg (x264, x265, H.266 VVC, AV1, NVENC, AMD AMF, Intel QSV), the LimeSDR Mini library
 (LimeSuite 23.11) and the HackRF library (libhackrf with libusb). Windows 10/11 64-bit, .NET Framework 4.7.2+.
