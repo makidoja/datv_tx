@@ -41,21 +41,27 @@ jobs:
           cp modhelper/build/datvtx_mod.exe out/
           ./out/datvtx_mod.exe --bitrate --const qpsk --fec 2/3 --sr 333000
 
-      - name: Bundle SDR driver libraries (HackRF, LimeSuite)
+      - name: Bundle SDR driver libraries (HackRF)
         shell: msys2 {0}
         run: |
-          pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-hackrf mingw-w64-ucrt-x86_64-ntldd
-          pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-limesuite || echo "No LimeSuite package in MSYS2 - Lime users need PothosSDR/LimeSuite installed"
-          ls /ucrt64/bin | grep -i -E 'hackrf|lime|usb' || true
-          for f in /ucrt64/bin/libhackrf*.dll /ucrt64/bin/hackrf*.dll /ucrt64/bin/*LimeSuite*.dll /ucrt64/bin/hackrf_info.exe /ucrt64/bin/LimeUtil.exe; do
-            [ -f "$f" ] || continue
-            echo "bundling $f"
-            cp "$f" out/
-            ntldd -R "$f" | grep -i 'ucrt64' | awk '{print $3}' | while read d; do
-              u=$(cygpath -u "$d"); [ -f "$u" ] && cp -n "$u" out/ && echo "  + $(basename "$u")"
+          set +e
+          pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-hackrf
+          # copy a DLL/EXE and, recursively, every DLL it imports from /ucrt64/bin
+          bundle() {
+            local f="$1" name dep
+            name=$(basename "$f")
+            [ -f "out/$name" ] && [ "$2" = "dep" ] && return
+            cp "$f" out/ && echo "  + $name"
+            for dep in $(objdump -p "$f" | awk '/DLL Name:/ {print $3}'); do
+              [ -f "/ucrt64/bin/$dep" ] && [ ! -f "out/$dep" ] && bundle "/ucrt64/bin/$dep" dep
             done
+          }
+          for f in /ucrt64/bin/libhackrf*.dll /ucrt64/bin/hackrf_info.exe; do
+            [ -f "$f" ] && bundle "$f" top
           done
           ls out/*.dll out/*.exe
+          [ -f out/libhackrf.dll ] || { echo "libhackrf.dll was not bundled"; exit 1; }
+          exit 0
 
       - name: Check the modulator loads the bundled HackRF library
         shell: pwsh
