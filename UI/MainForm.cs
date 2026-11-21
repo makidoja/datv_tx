@@ -27,10 +27,21 @@ namespace DatvTx.UI
         private readonly ConcurrentDictionary<string, string> _telemetry = new ConcurrentDictionary<string, string>();
         private EncoderStats _lastStats;
         private readonly Timer _uiTimer = new Timer { Interval = 500 };
+        private readonly Timer _gainTimer = new Timer { Interval = 200 };
+        private long _lastUnderruns = -1;
 
         // header
         private Label _lblHardware, _lblHelp;
-        private Button _btnConnect, _btnSettings;
+        private Button _btnConnect, _btnSettings, _btnSpectrum;
+
+        // spectrum
+        private QoSpectrum _spectrum;
+        private Panel _spectrumCard;
+        private TableLayoutPanel _root;
+
+        // tabs
+        private readonly List<Button> _tabButtons = new List<Button>();
+        private readonly List<Control> _tabPages = new List<Control>();
 
         // source & encoder
         private ComboBox _cmbInput, _cmbVideo, _cmbAudio, _cmbCodec, _cmbSize, _cmbFps, _cmbChannels, _cmbAbr;
@@ -41,10 +52,17 @@ namespace DatvTx.UI
         // modulator
         private ComboBox _cmbStandard, _cmbConst, _cmbSr, _cmbFec, _cmbFrame, _cmbRollOff, _cmbFreq;
         private CheckBox _chkPilots;
-        private NumericUpDown _numGain, _numDGain;
+        private NumericUpDown _numDGain;
+        private Label _lblTs, _lblVideo;
 
-        // transmit
-        private Label _lblBigFreq, _lblSummary, _lblTs, _lblVideo, _lblStats, _lblStatus;
+        // memories
+        private ListBox _lstMem;
+        private TextBox _txtMemName;
+
+        // transmit column
+        private Label _lblDownlink, _lblSummary, _lblStats, _lblStatus, _lblPower;
+        private TrafficLight _light;
+        private TrackBar _trkPower;
         private Button _btnStart, _btnPtt, _btnMonitor;
 
         // receive
@@ -65,13 +83,15 @@ namespace DatvTx.UI
             ForeColor = Theme.Text;
             Font = Theme.Ui(9f);
             StartPosition = FormStartPosition.CenterScreen;
-            MinimumSize = new Size(1180, 780);
-            Size = new Size(1280, 860);
+            MinimumSize = new Size(1120, 820);
+            Size = new Size(1280, 900);
             AutoScaleMode = AutoScaleMode.Dpi;
 
             BuildUi();
             CreateTransmitter();
             ApplyParams(_s.LastRun ?? new TxParams());
+            RefreshMemories();
+            ShowSpectrum(_s.ShowSpectrum);
 
             _ffmpeg.Log += l => UI(() => AppendLog(l));
             _ffmpeg.Stats += st => { _lastStats = st; };
@@ -79,6 +99,7 @@ namespace DatvTx.UI
 
             _uiTimer.Tick += (s, e) => RefreshLive();
             _uiTimer.Start();
+            _gainTimer.Tick += async (s, e) => { _gainTimer.Stop(); await GainCommitted(); };
 
             Load += async (s, e) => { Theme.DarkTitleBar(this); await RefreshDevicesAsync(); };
             FormClosing += OnClosing;
@@ -88,26 +109,37 @@ namespace DatvTx.UI
 
         private void BuildUi()
         {
-            var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(12), BackColor = Theme.Bg };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 78));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 150));
-            Controls.Add(root);
+            _root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(12), BackColor = Theme.Bg };
+            _root.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
+            _root.RowStyles.Add(new RowStyle(SizeType.Absolute, 190));
+            _root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            _root.RowStyles.Add(new RowStyle(SizeType.Absolute, 120));
+            Controls.Add(_root);
 
-            root.Controls.Add(BuildHeader(), 0, 0);
+            _root.Controls.Add(BuildHeader(), 0, 0);
 
-            var body = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, BackColor = Theme.Bg, Margin = new Padding(0, 10, 0, 10) };
-            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3f));
-            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3f));
-            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.4f));
-            root.Controls.Add(body, 0, 1);
+            _spectrumCard = Theme.Card();
+            _spectrumCard.Dock = DockStyle.Fill;
+            _spectrumCard.Margin = new Padding(0, 10, 0, 0);
+            _spectrumCard.Padding = new Padding(6, 4, 6, 4);
+            _spectrum = new QoSpectrum { Dock = DockStyle.Fill };
+            _spectrum.ChannelPicked += (down, sr) => BeginInvoke((Action)(async () => await ChannelPicked(down, sr)));
+            var specTitle = new Label { Text = "QO-100 WIDEBAND  •  BATC live spectrum  •  click a channel to set the TX frequency", Dock = DockStyle.Top, Height = 20, ForeColor = Theme.Muted, Font = Theme.Semi(8.5f), Padding = new Padding(6, 0, 0, 0) };
+            _spectrumCard.Controls.Add(_spectrum);
+            _spectrumCard.Controls.Add(specTitle);
+            _root.Controls.Add(_spectrumCard, 0, 1);
 
-            var c1 = BuildSourceCard(); c1.Margin = new Padding(0, 0, 6, 0);
-            var c2 = BuildModulatorCard(); c2.Margin = new Padding(6, 0, 6, 0);
-            var c3 = BuildTransmitCard(); c3.Margin = new Padding(6, 0, 0, 0);
-            body.Controls.Add(c1, 0, 0);
-            body.Controls.Add(c2, 1, 0);
-            body.Controls.Add(c3, 2, 0);
+            var body = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Theme.Bg, Margin = new Padding(0, 10, 0, 10) };
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 360));
+            _root.Controls.Add(body, 0, 2);
+
+            var tabs = BuildTabs();
+            tabs.Margin = new Padding(0, 0, 6, 0);
+            body.Controls.Add(tabs, 0, 0);
+            var tx = BuildTransmitColumn();
+            tx.Margin = new Padding(6, 0, 0, 0);
+            body.Controls.Add(tx, 1, 0);
 
             var logCard = Theme.Card();
             logCard.Dock = DockStyle.Fill;
@@ -125,8 +157,16 @@ namespace DatvTx.UI
                 WordWrap = true
             };
             logCard.Controls.Add(_log);
-            logCard.Controls.Add(Theme.CardTitle("LOG"));
-            root.Controls.Add(logCard, 0, 2);
+            _root.Controls.Add(logCard, 0, 3);
+        }
+
+        private void ShowSpectrum(bool show)
+        {
+            _s.ShowSpectrum = show;
+            _spectrumCard.Visible = show;
+            _root.RowStyles[1].Height = show ? 190 : 0;
+            _btnSpectrum.Text = show ? "HIDE SPECTRUM" : "SPECTRUM";
+            if (show) _spectrum.Start(); else _spectrum.Stop();
         }
 
         private Panel BuildHeader()
@@ -135,39 +175,193 @@ namespace DatvTx.UI
             p.Dock = DockStyle.Fill;
             p.Margin = new Padding(0);
 
-            var title = new Label { Text = "◉  " + ProductTitle, AutoSize = true, Location = new Point(16, 10), ForeColor = Theme.Text, Font = Theme.Semi(14f) };
-            var credit = new Label { Text = "based on DATV-NotSoEasy by DL5OCD", AutoSize = true, Location = new Point(20, 44), ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
-            _lblHardware = new Label { AutoSize = true, Location = new Point(330, 14), ForeColor = Theme.Text, Font = Theme.Semi(10f) };
-            _lblHelp = new Label { AutoSize = false, Location = new Point(330, 38), Size = new Size(560, 34), ForeColor = Theme.Muted, Font = Theme.Ui(8.5f), Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right };
+            var title = new Label { Text = "◉  " + ProductTitle, AutoSize = true, Location = new Point(16, 8), ForeColor = Theme.Text, Font = Theme.Semi(14f) };
+            var credit = new Label { Text = "based on DATV-NotSoEasy by DL5OCD", AutoSize = true, Location = new Point(20, 42), ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
+            _lblHardware = new Label { AutoSize = true, Location = new Point(330, 12), ForeColor = Theme.Text, Font = Theme.Semi(10f) };
+            _lblHelp = new Label { AutoSize = false, Location = new Point(330, 34), Size = new Size(400, 32), ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
 
             _btnSettings = Theme.Button("SETTINGS");
-            _btnSettings.Size = new Size(110, 38);
-            _btnSettings.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            _btnSettings.Size = new Size(100, 38);
             _btnSettings.Click += (s, e) => OpenSettings();
 
             _btnConnect = Theme.Button("CONNECT", true);
-            _btnConnect.Size = new Size(150, 38);
-            _btnConnect.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            _btnConnect.Size = new Size(130, 38);
             _btnConnect.Click += async (s, e) => await ToggleConnectionAsync();
 
-            p.Controls.AddRange(new Control[] { title, credit, _lblHardware, _lblHelp, _btnConnect, _btnSettings });
+            _btnSpectrum = Theme.Button("SPECTRUM");
+            _btnSpectrum.Size = new Size(124, 38);
+            _btnSpectrum.Click += (s, e) => ShowSpectrum(!_s.ShowSpectrum);
+
+            p.Controls.AddRange(new Control[] { title, credit, _lblHardware, _lblHelp, _btnSpectrum, _btnConnect, _btnSettings });
             p.Resize += (s, e) =>
             {
-                _btnSettings.Location = new Point(p.Width - _btnSettings.Width - 16, 16);
-                _btnConnect.Location = new Point(_btnSettings.Left - _btnConnect.Width - 10, 16);
-                _lblHelp.Width = Math.Max(200, _btnConnect.Left - _lblHelp.Left - 16);
+                _btnSettings.Location = new Point(p.Width - _btnSettings.Width - 14, 15);
+                _btnConnect.Location = new Point(_btnSettings.Left - _btnConnect.Width - 8, 15);
+                _btnSpectrum.Location = new Point(_btnConnect.Left - _btnSpectrum.Width - 8, 15);
+                _lblHelp.Width = Math.Max(150, _btnSpectrum.Left - _lblHelp.Left - 12);
             };
             return p;
         }
 
-        private Panel BuildSourceCard()
+        // ------------------------------------------------------------------ tabs
+
+        private Control BuildTabs()
         {
             var card = Theme.Card();
             card.Dock = DockStyle.Fill;
-            var grid = Theme.FieldGrid();
+            card.Padding = new Padding(12, 8, 12, 10);
+
+            var strip = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 40, BackColor = Theme.Surface, WrapContents = false, Padding = new Padding(0, 0, 0, 4) };
+            var host = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Surface, Padding = new Padding(0, 8, 0, 0) };
+
+            AddTab(strip, host, "DVB", BuildDvbPage());
+            AddTab(strip, host, "SOURCE", BuildSourcePage());
+            AddTab(strip, host, "MEMORIES", BuildMemoriesPage());
+            AddTab(strip, host, "RECEIVE", BuildReceivePage());
+            AddTab(strip, host, "STATUS", BuildStatusPage());
+
+            card.Controls.Add(host);
+            card.Controls.Add(strip);
+            SelectTab(0);
+            return card;
+        }
+
+        private void AddTab(FlowLayoutPanel strip, Panel host, string name, Control page)
+        {
+            int index = _tabButtons.Count;
+            var b = Theme.Button(name);
+            b.Size = new Size(104, 32);
+            b.Margin = new Padding(0, 0, 6, 0);
+            b.Click += (s, e) => SelectTab(index);
+            strip.Controls.Add(b);
+            _tabButtons.Add(b);
+
+            page.Dock = DockStyle.Fill;
+            page.Visible = false;
+            host.Controls.Add(page);
+            _tabPages.Add(page);
+        }
+
+        private void SelectTab(int index)
+        {
+            for (int i = 0; i < _tabPages.Count; i++)
+            {
+                bool on = i == index;
+                _tabPages[i].Visible = on;
+                Theme.Paint(_tabButtons[i], on ? Theme.Accent : Theme.Surface2, on ? Theme.Accent : Theme.Border);
+            }
+        }
+
+        private static Label GroupTitle(string text)
+        {
+            return new Label { Text = text, Dock = DockStyle.Top, Height = 24, ForeColor = Theme.Text, Font = Theme.Semi(9.5f), TextAlign = ContentAlignment.MiddleLeft };
+        }
+
+        private Control BuildDvbPage()
+        {
+            var page = new TableLayoutPanel { ColumnCount = 2, RowCount = 2, BackColor = Theme.Surface };
+            page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            page.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
+            page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            _lblTs = BitrateBox("Target TS bitrate");
+            _lblVideo = BitrateBox("Video bitrate");
+            page.Controls.Add(_lblTs.Parent, 0, 0);
+            page.Controls.Add(_lblVideo.Parent, 1, 0);
+
+            // ---- MODE
+            var mode = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Surface, Margin = new Padding(0, 0, 10, 0) };
+            var grid = Theme.FieldGrid(110);
+
+            _cmbStandard = Theme.Combo();
+            _cmbStandard.Items.AddRange(new object[] { "DVB-S2", "DVB-S" });
+            _cmbStandard.SelectedIndexChanged += (s, e) => { if (!_loading) RefillFec(); };
+            Theme.AddRow(grid, "Standard", _cmbStandard);
+
+            _cmbConst = Theme.Combo();
+            _cmbConst.Items.AddRange(new object[] { "QPSK", "8PSK", "16APSK", "32APSK" });
+            _cmbConst.SelectedIndexChanged += (s, e) => { if (!_loading) RefillFec(); _numDGain.Enabled = Constellation() == "qpsk"; };
+            Theme.AddRow(grid, "Constellation", _cmbConst);
+
+            _cmbSr = Theme.Combo(true);
+            foreach (int sr in DvbCalc.SymbolRates) _cmbSr.Items.Add(sr.ToString(Inv));
+            Theme.AddRow(grid, "Symbol rate (KS)", _cmbSr);
+
+            _cmbFec = Theme.Combo();
+            Theme.AddRow(grid, "FEC", _cmbFec);
+
+            _cmbFrame = Theme.Combo();
+            _cmbFrame.Items.AddRange(new object[] { "Long (64800)", "Short (16200)" });
+            Theme.AddRow(grid, "FEC frame", _cmbFrame);
+
+            _cmbRollOff = Theme.Combo();
+            _cmbRollOff.Items.AddRange(new object[] { "0.20", "0.15" });
+            _cmbRollOff.SelectedIndexChanged += async (s, e) => { if (CanLive()) await Live(() => _tx.SetRollOffAsync(SelectedRollOff()), "Roll-off " + _cmbRollOff.Text); };
+            Theme.AddRow(grid, "Roll-off", _cmbRollOff);
+
+            _chkPilots = Theme.Check("Pilot symbols");
+            Theme.AddRow(grid, "", _chkPilots);
+
+            _numDGain = Theme.Number(-20, 3, 0.25m, 2);
+            _numDGain.ValueChanged += async (s, e) => { if (CanLive()) await Live(() => _tx.SetDigitalGainAsync((double)_numDGain.Value), "Digital gain " + _numDGain.Value.ToString("0.00", Inv) + " dB"); };
+            Theme.AddRow(grid, "Digital gain (dB)", _numDGain);
+
+            mode.Controls.Add(grid);
+            mode.Controls.Add(GroupTitle("MODE"));
+            page.Controls.Add(mode, 0, 1);
+
+            // ---- VIDEO / AUDIO
+            var av = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Surface, Margin = new Padding(10, 0, 0, 0) };
+            var g2 = Theme.FieldGrid(100);
+
+            _cmbCodec = Theme.Combo();
+            Theme.AddRow(g2, "Codec", _cmbCodec);
+
+            _cmbSize = Theme.Combo(true);
+            _cmbSize.Items.AddRange(new object[] { "640x360", "960x540", "1280x720", "1920x1080", "2560x1440" });
+            Theme.AddRow(g2, "Image size", _cmbSize);
+
+            _cmbFps = Theme.Combo(true);
+            _cmbFps.Items.AddRange(new object[] { "10", "15", "20", "25", "30", "48", "50", "60" });
+            Theme.AddRow(g2, "Frame rate", _cmbFps);
+
+            _cmbChannels = Theme.Combo();
+            _cmbChannels.Items.AddRange(new object[] { "Mono", "Stereo", "5.1", "7.1" });
+            Theme.AddRow(g2, "Audio", _cmbChannels);
+
+            _cmbAbr = Theme.Combo();
+            _cmbAbr.Items.AddRange(new object[] { "8", "16", "32", "48", "64", "96", "128", "192", "256" });
+            Theme.AddRow(g2, "Audio kbit/s", _cmbAbr);
+
+            av.Controls.Add(g2);
+            av.Controls.Add(GroupTitle("VIDEO / AUDIO"));
+            page.Controls.Add(av, 1, 1);
+
+            foreach (Control c in new Control[] { _cmbStandard, _cmbConst, _cmbSr, _cmbFec, _cmbFrame, _chkPilots, _cmbCodec, _cmbSize, _cmbFps, _cmbChannels, _cmbAbr })
+                HookRecalc(c);
+            _lockWhileRunning.AddRange(new Control[] { _cmbStandard, _cmbConst, _cmbSr, _cmbFec, _cmbFrame, _chkPilots, _cmbCodec, _cmbSize, _cmbFps, _cmbChannels, _cmbAbr });
+            return page;
+        }
+
+        /// <summary>A titled read-only value box (DATV-Easy style). Returns the value label; its Parent is the box.</summary>
+        private static Label BitrateBox(string title)
+        {
+            var box = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Surface, Margin = new Padding(0, 0, 10, 6) };
+            var t = new Label { Text = title, Dock = DockStyle.Top, Height = 20, ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
+            var v = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Text, BackColor = Theme.Surface2, Font = Theme.Semi(12f), TextAlign = ContentAlignment.MiddleCenter };
+            box.Controls.Add(v);
+            box.Controls.Add(t);
+            return v;
+        }
+
+        private Control BuildSourcePage()
+        {
+            var page = new Panel { BackColor = Theme.Surface };
+            var grid = Theme.FieldGrid(120);
 
             _cmbInput = Theme.Combo();
-            _cmbInput.Items.AddRange(new object[] { "Capture device (OBS / camera)", "Network UDP", "Network RTMP", "Video file" });
+            _cmbInput.Items.AddRange(new object[] { "Capture device (OBS Virtual Camera / camera)", "Network UDP", "Network RTMP", "Video file" });
             _cmbInput.SelectedIndexChanged += (s, e) => UpdateInputVisibility();
             Theme.AddRow(grid, "Input", _cmbInput);
 
@@ -188,199 +382,268 @@ namespace DatvTx.UI
             _fileRow = Inline(_txtFile, _btnBrowse);
             Theme.AddRow(grid, "Video file", _fileRow);
 
-            _cmbCodec = Theme.Combo();
-            Theme.AddRow(grid, "Codec", _cmbCodec);
+            var hint = new Label
+            {
+                Dock = DockStyle.Top,
+                Height = 70,
+                ForeColor = Theme.Muted,
+                Font = Theme.Ui(8.5f),
+                Padding = new Padding(0, 10, 0, 0),
+                Text = "OBS: Tools → Start Virtual Camera, and send audio to a virtual cable (e.g. VB-Audio) or the OBS audio device.\n" +
+                       "Network UDP / RTMP and the file loop are set in Settings → Input. Press ↻ after plugging in a device."
+            };
 
-            _cmbSize = Theme.Combo(true);
-            _cmbSize.Items.AddRange(new object[] { "640x360", "960x540", "1280x720", "1920x1080", "2560x1440" });
-            Theme.AddRow(grid, "Resolution", _cmbSize);
+            page.Controls.Add(hint);
+            page.Controls.Add(grid);
+            page.Controls.Add(GroupTitle("INPUT"));
+            _lockWhileRunning.AddRange(new Control[] { _cmbInput, _cmbVideo, _cmbAudio, _btnRefresh, _txtFile, _btnBrowse });
+            return page;
+        }
 
-            _cmbFps = Theme.Combo(true);
-            _cmbFps.Items.AddRange(new object[] { "10", "20", "25", "30", "48", "50", "60" });
-            Theme.AddRow(grid, "Frame rate", _cmbFps);
+        private Control BuildMemoriesPage()
+        {
+            var page = new Panel { BackColor = Theme.Surface };
 
-            _cmbChannels = Theme.Combo();
-            _cmbChannels.Items.AddRange(new object[] { "Mono", "Stereo", "5.1", "7.1" });
-            Theme.AddRow(grid, "Audio", _cmbChannels);
+            _lstMem = new ListBox
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Theme.Surface2,
+                ForeColor = Theme.Text,
+                BorderStyle = BorderStyle.None,
+                Font = Theme.Ui(9.5f),
+                DrawMode = DrawMode.OwnerDrawFixed,
+                ItemHeight = 40,
+                IntegralHeight = false
+            };
+            _lstMem.DrawItem += DrawMemory;
+            _lstMem.DoubleClick += (s, e) => RecallMemory();
 
-            _cmbAbr = Theme.Combo();
-            _cmbAbr.Items.AddRange(new object[] { "8", "16", "32", "48", "64", "96", "128", "192", "256" });
-            Theme.AddRow(grid, "Audio kbit/s", _cmbAbr);
+            var bar = new TableLayoutPanel { Dock = DockStyle.Bottom, Height = 46, ColumnCount = 5, BackColor = Theme.Surface, Padding = new Padding(0, 8, 0, 0) };
+            bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            for (int i = 0; i < 4; i++) bar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 96));
+            _txtMemName = Theme.TextBox();
+            _txtMemName.Margin = new Padding(0, 4, 8, 4);
+            var recall = Theme.Button("RECALL", true); recall.Dock = DockStyle.Fill; recall.Margin = new Padding(0, 2, 6, 2);
+            var store = Theme.Button("STORE NEW"); store.Dock = DockStyle.Fill; store.Margin = new Padding(0, 2, 6, 2);
+            var over = Theme.Button("OVERWRITE"); over.Dock = DockStyle.Fill; over.Margin = new Padding(0, 2, 6, 2);
+            var del = Theme.Button("DELETE"); del.Dock = DockStyle.Fill; del.Margin = new Padding(0, 2, 0, 2);
+            recall.Click += (s, e) => RecallMemory();
+            store.Click += (s, e) => StoreMemory(false);
+            over.Click += (s, e) => StoreMemory(true);
+            del.Click += (s, e) => DeleteMemory();
+            bar.Controls.Add(_txtMemName, 0, 0);
+            bar.Controls.Add(recall, 1, 0);
+            bar.Controls.Add(store, 2, 0);
+            bar.Controls.Add(over, 3, 0);
+            bar.Controls.Add(del, 4, 0);
+            _lstMem.SelectedIndexChanged += (s, e) =>
+            {
+                var m = _lstMem.SelectedItem as TxMemory;
+                if (m != null) _txtMemName.Text = m.Name;
+            };
 
-            foreach (Control c in new Control[] { _cmbCodec, _cmbSize, _cmbFps, _cmbChannels, _cmbAbr })
-                HookRecalc(c);
+            var hint = new Label { Text = "Name a set-up and press STORE NEW. Double-click or RECALL to load it (frequency, mode, SR, FEC, codec, power).", Dock = DockStyle.Top, Height = 22, ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
+            page.Controls.Add(_lstMem);
+            page.Controls.Add(bar);
+            page.Controls.Add(hint);
+            page.Controls.Add(GroupTitle("MEMORIES"));
+            _lockWhileRunning.Add(recall);
+            return page;
+        }
 
-            _lockWhileRunning.AddRange(new Control[] { _cmbInput, _cmbVideo, _cmbAudio, _btnRefresh, _txtFile, _btnBrowse, _cmbCodec, _cmbSize, _cmbFps, _cmbChannels, _cmbAbr });
+        private void DrawMemory(object sender, DrawItemEventArgs e)
+        {
+            if (e.Index < 0) return;
+            var m = (TxMemory)_lstMem.Items[e.Index];
+            bool sel = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+            using (var b = new SolidBrush(sel ? Theme.Accent : (e.Index % 2 == 0 ? Theme.Surface2 : Color.FromArgb(15, 33, 52))))
+                e.Graphics.FillRectangle(b, e.Bounds);
+            using (var f = Theme.Semi(10f))
+                TextRenderer.DrawText(e.Graphics, m.Name, f, new Point(e.Bounds.X + 8, e.Bounds.Y + 3), Theme.Text);
+            var p = m.Params;
+            string detail = p == null ? "" : string.Format(Inv, "{0:0.00} MHz   {1} {2}  {3} KS  FEC {4}   {5}  {6}  {7:0.##} fps   {8:0.##} dB",
+                p.TxFrequencyMHz, p.DvbS2 ? "DVB-S2" : "DVB-S", p.Constellation.ToUpperInvariant(), p.SymbolRateKs, p.Fec, p.Codec, p.ImageSize, p.Fps, p.GainDb);
+            using (var f = Theme.Ui(8.5f))
+                TextRenderer.DrawText(e.Graphics, detail, f, new Point(e.Bounds.X + 8, e.Bounds.Y + 21), sel ? Theme.Text : Theme.Muted);
+        }
+
+        private Control BuildReceivePage()
+        {
+            var page = new Panel { BackColor = Theme.Surface };
+            var grid = Theme.FieldGrid(140);
+
+            _chkRx = Theme.Check("Start Longmynd receive with TX");
+            Theme.AddRow(grid, "", _chkRx);
+
+            _cmbRxFreq = Theme.Combo(true);
+            _cmbRxFreq.Items.Add("10491.50   (QO-100 beacon)");
+            for (int i = 0; i < 28; i++) _cmbRxFreq.Items.Add((10492.75 + i * 0.25).ToString("0.00", Inv));
+            _cmbRxFreq.SelectionChangeCommitted += (s, e) => BeginInvoke((Action)(async () => await RxCommitted()));
+            Theme.AddRow(grid, "RX frequency (MHz)", _cmbRxFreq);
+
+            _cmbRxSr = Theme.Combo(true);
+            foreach (int sr in DvbCalc.SymbolRates) _cmbRxSr.Items.Add(sr.ToString(Inv));
+            _cmbRxSr.SelectionChangeCommitted += (s, e) => BeginInvoke((Action)(async () => await RxCommitted()));
+            Theme.AddRow(grid, "RX symbol rate (KS)", _cmbRxSr);
+
+            _btnPlayer = Theme.Button("OPEN RX PLAYER");
+            _btnPlayer.Dock = DockStyle.Fill; _btnPlayer.Margin = new Padding(0, 4, 0, 4);
+            _btnPlayer.Click += (s, e) => OpenRxPlayer();
+            Theme.AddRow(grid, "", _btnPlayer, 40);
 
             var hint = new Label
             {
                 Dock = DockStyle.Top,
-                Height = 56,
+                Height = 60,
                 ForeColor = Theme.Muted,
                 Font = Theme.Ui(8.5f),
-                Text = "Tip: in OBS use Start Virtual Camera, and send audio to a virtual cable (e.g. VB-Audio) to pick it up here."
+                Padding = new Padding(0, 10, 0, 0),
+                Text = "Needs a Pluto with F5OEO firmware and a MiniTiouner on a powered USB hub. LNB offset, polarisation, tuner port\nand the output address are in Settings → Longmynd receive. Relay mode is under Settings → Run mode."
             };
-
-            card.Controls.Add(hint);
-            card.Controls.Add(grid);
-            card.Controls.Add(Theme.CardTitle("SOURCE & ENCODER"));
-            return card;
+            page.Controls.Add(hint);
+            page.Controls.Add(grid);
+            page.Controls.Add(GroupTitle("PLUTO LONGMYND RECEIVE"));
+            _lockWhileRunning.Add(_chkRx);
+            return page;
         }
 
-        private Panel BuildModulatorCard()
+        private Control BuildStatusPage()
+        {
+            var page = new Panel { BackColor = Theme.Surface };
+            _lblStatus = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = new Font("Consolas", 9f), TextAlign = ContentAlignment.TopLeft, Text = "No radio status yet." };
+            page.Controls.Add(_lblStatus);
+            page.Controls.Add(GroupTitle("RADIO / MODULATOR STATUS"));
+            return page;
+        }
+
+        // ------------------------------------------------------------------ transmit column
+
+        private Control BuildTransmitColumn()
         {
             var card = Theme.Card();
             card.Dock = DockStyle.Fill;
-            var grid = Theme.FieldGrid();
+            card.Padding = new Padding(14, 10, 8, 12);
 
-            _cmbStandard = Theme.Combo();
-            _cmbStandard.Items.AddRange(new object[] { "DVB-S2", "DVB-S" });
-            _cmbStandard.SelectedIndexChanged += (s, e) => { if (!_loading) RefillFec(); };
-            Theme.AddRow(grid, "Standard", _cmbStandard);
+            var cols = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Theme.Surface };
+            cols.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            cols.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
 
-            _cmbConst = Theme.Combo();
-            _cmbConst.Items.AddRange(new object[] { "QPSK", "8PSK", "16APSK", "32APSK" });
-            _cmbConst.SelectedIndexChanged += (s, e) => { if (!_loading) RefillFec(); _numDGain.Enabled = Constellation() == "qpsk"; };
-            Theme.AddRow(grid, "Constellation", _cmbConst);
+            var stack = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, BackColor = Theme.Surface, Margin = new Padding(0) };
+            int r = 0;
+            Action<Control, int> add = (c, h) =>
+            {
+                stack.RowStyles.Add(h > 0 ? new RowStyle(SizeType.Absolute, h) : new RowStyle(SizeType.Percent, 100));
+                stack.Controls.Add(c, 0, r++);
+            };
 
-            _cmbSr = Theme.Combo(true);
-            foreach (int sr in DvbCalc.SymbolRates) _cmbSr.Items.Add(sr.ToString(Inv));
-            Theme.AddRow(grid, "Symbol rate (KS)", _cmbSr);
-
-            _cmbFec = Theme.Combo();
-            Theme.AddRow(grid, "FEC", _cmbFec);
-
-            _cmbFrame = Theme.Combo();
-            _cmbFrame.Items.AddRange(new object[] { "Long", "Short" });
-            Theme.AddRow(grid, "Frames", _cmbFrame);
-
-            _chkPilots = Theme.Check("Pilots");
-            Theme.AddRow(grid, "", _chkPilots);
-
-            _cmbRollOff = Theme.Combo();
-            _cmbRollOff.Items.AddRange(new object[] { "0.20", "0.15" });
-            _cmbRollOff.SelectedIndexChanged += async (s, e) => { if (CanLive()) await Live(() => _tx.SetRollOffAsync(SelectedRollOff()), "Roll-off " + _cmbRollOff.Text); };
-            Theme.AddRow(grid, "Roll-off", _cmbRollOff);
+            add(new Label { Text = "FREQUENCY MHz", Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Semi(8.5f), TextAlign = ContentAlignment.BottomLeft }, 20);
 
             _cmbFreq = Theme.Combo(true);
+            _cmbFreq.Font = Theme.Semi(15f);
+            _cmbFreq.ItemHeight = 26;
             for (int i = 0; i < 28; i++)
             {
                 double up = 2403.25 + i * 0.25;
-                _cmbFreq.Items.Add(string.Format(Inv, "{0:0.00}   (QO-100 {1:0.00})", up, up + 8089.5));
+                _cmbFreq.Items.Add(string.Format(Inv, "{0:0.00}   ↓{1:0.00}", up, up + QoSpectrum.UplinkOffsetMHz));
             }
             _cmbFreq.SelectionChangeCommitted += (s, e) => BeginInvoke((Action)(async () => await FrequencyCommitted()));
             _cmbFreq.KeyDown += async (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; await FrequencyCommitted(); } };
             _cmbFreq.Leave += async (s, e) => await FrequencyCommitted();
-            Theme.AddRow(grid, "TX frequency (MHz)", _cmbFreq);
+            add(_cmbFreq, 40);
 
-            _numGain = Theme.Number(-50, 0, 0.25m, 2);
-            _numGain.ValueChanged += async (s, e) => { if (CanLive()) await Live(() => _tx.SetGainAsync((double)_numGain.Value), "Gain " + _numGain.Value.ToString("0.00", Inv) + " dB"); };
-            Theme.AddRow(grid, "Gain (dB)", _numGain);
+            _lblDownlink = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Ui(9f), TextAlign = ContentAlignment.TopLeft };
+            add(_lblDownlink, 22);
 
-            _numDGain = Theme.Number(-20, 3, 0.25m, 2);
-            _numDGain.ValueChanged += async (s, e) => { if (CanLive()) await Live(() => _tx.SetDigitalGainAsync((double)_numDGain.Value), "Digital gain " + _numDGain.Value.ToString("0.00", Inv) + " dB"); };
-            Theme.AddRow(grid, "Digital gain (QPSK)", _numDGain);
+            add(new Label { Text = "TRANSMISSION", Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Semi(8.5f), TextAlign = ContentAlignment.BottomLeft }, 22);
+            _light = new TrafficLight { Dock = DockStyle.Fill };
+            add(_light, 60);
 
-            foreach (Control c in new Control[] { _cmbStandard, _cmbConst, _cmbSr, _cmbFec, _cmbFrame, _chkPilots })
-                HookRecalc(c);
-            _lockWhileRunning.AddRange(new Control[] { _cmbStandard, _cmbConst, _cmbSr, _cmbFec, _cmbFrame, _chkPilots });
-
-            // Profiles (favorite-1..3.ini)
-            var prof = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 74, BackColor = Theme.Surface, Padding = new Padding(0, 6, 0, 0), WrapContents = true };
-            var profTitle = new Label { Text = "PROFILES", Width = 360, Height = 22, ForeColor = Theme.Muted, Font = Theme.Semi(8.5f), TextAlign = ContentAlignment.MiddleLeft };
-            prof.Controls.Add(profTitle);
-            prof.SetFlowBreak(profTitle, true);
-            for (int i = 0; i < 3; i++)
-            {
-                int idx = i;
-                var load = Theme.Button("Load " + (i + 1));
-                load.Size = new Size(64, 30);
-                load.Click += (s, e) => LoadProfile(idx);
-                prof.Controls.Add(load);
-                _lockWhileRunning.Add(load);
-            }
-            for (int i = 0; i < 3; i++)
-            {
-                int idx = i;
-                var save = Theme.Button("Save " + (i + 1));
-                save.Size = new Size(64, 30);
-                save.ForeColor = Theme.Muted;
-                save.Click += (s, e) => SaveProfile(idx);
-                prof.Controls.Add(save);
-            }
-
-            card.Controls.Add(prof);
-            card.Controls.Add(grid);
-            card.Controls.Add(Theme.CardTitle("MODULATOR"));
-            return card;
-        }
-
-        private Panel BuildTransmitCard()
-        {
-            var card = Theme.Card();
-            card.Dock = DockStyle.Fill;
-
-            var stack = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, BackColor = Theme.Surface };
-            stack.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            stack.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-
-            _lblBigFreq = new Label { Text = "— MHz", Dock = DockStyle.Fill, ForeColor = Theme.Text, Font = Theme.Semi(22f), TextAlign = ContentAlignment.MiddleLeft };
-            _lblSummary = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Ui(9f), TextAlign = ContentAlignment.TopLeft };
-            _lblTs = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Text, Font = Theme.Semi(10f), TextAlign = ContentAlignment.MiddleLeft, BackColor = Theme.Surface2, Margin = new Padding(0, 2, 4, 2), Padding = new Padding(8, 0, 0, 0) };
-            _lblVideo = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Text, Font = Theme.Semi(10f), TextAlign = ContentAlignment.MiddleLeft, BackColor = Theme.Surface2, Margin = new Padding(4, 2, 0, 2), Padding = new Padding(8, 0, 0, 0) };
+            _lblStats = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Ui(8.5f), TextAlign = ContentAlignment.MiddleLeft };
+            add(_lblStats, 24);
 
             _btnStart = Theme.Button("START", true);
-            _btnStart.Dock = DockStyle.Fill; _btnStart.Font = Theme.Semi(12f); _btnStart.Margin = new Padding(0, 6, 4, 6);
+            _btnStart.Dock = DockStyle.Fill; _btnStart.Font = Theme.Semi(13f); _btnStart.Margin = new Padding(0, 4, 0, 4);
             _btnStart.Click += async (s, e) => await StartStopAsync();
+            add(_btnStart, 60);
 
-            _btnPtt = Theme.Button("PTT OFF");
-            _btnPtt.Dock = DockStyle.Fill; _btnPtt.Font = Theme.Semi(12f); _btnPtt.Margin = new Padding(4, 6, 0, 6);
+            _btnPtt = Theme.Button("PTT");
+            _btnPtt.Dock = DockStyle.Fill; _btnPtt.Font = Theme.Semi(13f); _btnPtt.Margin = new Padding(0, 4, 0, 4);
             _btnPtt.Click += async (s, e) => await TogglePttAsync();
-
-            _lblStats = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Ui(9f), TextAlign = ContentAlignment.MiddleLeft };
-            _lblStatus = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = new Font("Consolas", 8.5f), TextAlign = ContentAlignment.TopLeft };
+            add(_btnPtt, 60);
 
             _btnMonitor = Theme.Button("MONITOR STREAM");
             _btnMonitor.Dock = DockStyle.Fill; _btnMonitor.Margin = new Padding(0, 4, 0, 4);
             _btnMonitor.Click += (s, e) => OpenMonitor();
+            add(_btnMonitor, 38);
 
-            // Longmynd receive
-            var rxTitle = new Label { Text = "RECEIVE (PLUTO LONGMYND)", Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Semi(8.5f), TextAlign = ContentAlignment.BottomLeft };
-            _chkRx = Theme.Check("Start Longmynd RX with TX");
-            _cmbRxFreq = Theme.Combo(true);
-            _cmbRxFreq.Items.Add("10491.50   (QO-100 beacon)");
-            for (int i = 0; i < 28; i++) _cmbRxFreq.Items.Add((10492.75 + i * 0.25).ToString("0.00", Inv));
-            _cmbRxFreq.Margin = new Padding(0, 3, 4, 3);
-            _cmbRxSr = Theme.Combo(true);
-            foreach (int sr in DvbCalc.SymbolRates) _cmbRxSr.Items.Add(sr.ToString(Inv));
-            _cmbRxSr.Margin = new Padding(4, 3, 0, 3);
-            _cmbRxFreq.SelectionChangeCommitted += (s, e) => BeginInvoke((Action)(async () => await RxCommitted()));
-            _cmbRxSr.SelectionChangeCommitted += (s, e) => BeginInvoke((Action)(async () => await RxCommitted()));
-            _btnPlayer = Theme.Button("OPEN RX PLAYER");
-            _btnPlayer.Dock = DockStyle.Fill; _btnPlayer.Margin = new Padding(0, 4, 0, 4);
-            _btnPlayer.Click += (s, e) => OpenRxPlayer();
-
-            int r = 0;
-            AddSpan(stack, _lblBigFreq, r++, 48);
-            AddSpan(stack, _lblSummary, r++, 40);
-            stack.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-            stack.Controls.Add(_lblTs, 0, r); stack.Controls.Add(_lblVideo, 1, r); r++;
-            stack.RowStyles.Add(new RowStyle(SizeType.Absolute, 68));
-            stack.Controls.Add(_btnStart, 0, r); stack.Controls.Add(_btnPtt, 1, r); r++;
-            AddSpan(stack, _lblStats, r++, 26);
-            AddSpan(stack, _btnMonitor, r++, 38);
-            AddSpan(stack, rxTitle, r++, 28);
-            AddSpan(stack, _chkRx, r++, 30);
-            stack.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
-            stack.Controls.Add(_cmbRxFreq, 0, r); stack.Controls.Add(_cmbRxSr, 1, r); r++;
-            AddSpan(stack, _btnPlayer, r++, 38);
-            AddSpan(stack, _lblStatus, r++, 0, true);
+            _lblSummary = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Ui(8.5f), TextAlign = ContentAlignment.TopLeft, Padding = new Padding(0, 6, 0, 0) };
+            add(_lblSummary, 0);
             stack.RowCount = r;
 
-            card.Controls.Add(stack);
+            // power slider (DATV-Easy style)
+            var power = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, BackColor = Theme.Surface, Margin = new Padding(4, 0, 0, 0) };
+            power.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
+            power.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            power.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+            power.Controls.Add(new Label { Text = "POWER", Dock = DockStyle.Fill, ForeColor = Theme.Muted, Font = Theme.Semi(8.5f), TextAlign = ContentAlignment.BottomCenter }, 0, 0);
+            _trkPower = new TrackBar
+            {
+                Orientation = Orientation.Vertical,
+                Dock = DockStyle.Fill,
+                Minimum = -200,
+                Maximum = 0,
+                TickFrequency = 20,
+                SmallChange = 1,
+                LargeChange = 4,
+                TickStyle = TickStyle.Both,
+                BackColor = Theme.Surface
+            };
+            _trkPower.ValueChanged += (s, e) =>
+            {
+                _lblPower.Text = SliderGainDb().ToString("0.00", Inv) + "\ndB";
+                if (CanLive()) { _gainTimer.Stop(); _gainTimer.Start(); }
+            };
+            power.Controls.Add(_trkPower, 0, 1);
+            _lblPower = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Text, Font = Theme.Semi(9.5f), TextAlign = ContentAlignment.MiddleCenter, BackColor = Theme.Surface2 };
+            power.Controls.Add(_lblPower, 0, 2);
+
+            cols.Controls.Add(stack, 0, 0);
+            cols.Controls.Add(power, 1, 0);
+            card.Controls.Add(cols);
             card.Controls.Add(Theme.CardTitle("TRANSMIT"));
-            _lockWhileRunning.Add(_chkRx);
             return card;
+        }
+
+        private double SliderGainDb() { return _trkPower.Value / 4.0; }
+
+        private void SetGainSlider(double db)
+        {
+            int v = (int)Math.Round(db * 4);
+            _trkPower.Value = Math.Max(_trkPower.Minimum, Math.Min(_trkPower.Maximum, v));
+            _lblPower.Text = SliderGainDb().ToString("0.00", Inv) + "\ndB";
+        }
+
+        private async Task GainCommitted()
+        {
+            if (!CanLive()) return;
+            double db = SliderGainDb();
+            if (_active != null) _active.GainDb = db;
+            await Live(() => _tx.SetGainAsync(db), "Power " + db.ToString("0.00", Inv) + " dB");
+        }
+
+        private async Task ChannelPicked(double downlinkMHz, int srKs)
+        {
+            double up = downlinkMHz - QoSpectrum.UplinkOffsetMHz;
+            if (srKs > 0)
+            {
+                if (_running && _active != null && _active.SymbolRateKs != srKs)
+                    AppendLog("That channel is for " + srKs + " KS. Stop and START again to change the symbol rate.");
+                else if (!_running)
+                    SelectOrText(_cmbSr, srKs.ToString(Inv));
+            }
+            _cmbFreq.Text = up.ToString("0.00", Inv);
+            AppendLog(string.Format(Inv, "QO-100 channel {0:0.00} MHz ↓ → TX {1:0.00} MHz{2}", downlinkMHz, up, srKs > 0 ? ", " + srKs + " KS" : ""));
+            await FrequencyCommitted();
         }
 
         private static void AddSpan(TableLayoutPanel t, Control c, int row, int height, bool fill = false)
@@ -408,6 +671,56 @@ namespace DatvTx.UI
             if (cb != null) { cb.SelectedIndexChanged += (s, e) => Recalc(); cb.TextChanged += (s, e) => Recalc(); return; }
             var ch = c as CheckBox;
             if (ch != null) ch.CheckedChanged += (s, e) => Recalc();
+        }
+
+        // ================================================================== memories
+
+        private void RefreshMemories()
+        {
+            object sel = _lstMem.SelectedItem;
+            _lstMem.Items.Clear();
+            foreach (var m in _s.Memories) _lstMem.Items.Add(m);
+            if (sel != null && _lstMem.Items.Contains(sel)) _lstMem.SelectedItem = sel;
+        }
+
+        private void RecallMemory()
+        {
+            if (_running) { AppendLog("Stop transmitting before recalling a memory."); return; }
+            var m = _lstMem.SelectedItem as TxMemory;
+            if (m == null || m.Params == null) { AppendLog("Select a memory first."); return; }
+            ApplyParams(m.Params);
+            AppendLog("Recalled \"" + m.Name + "\": " + m.Params.Summary());
+        }
+
+        private void StoreMemory(bool overwrite)
+        {
+            string name = _txtMemName.Text.Trim();
+            var p = ReadParams();
+            if (overwrite)
+            {
+                var m = _lstMem.SelectedItem as TxMemory;
+                if (m == null) { AppendLog("Select the memory to overwrite."); return; }
+                if (name.Length > 0) m.Name = name;
+                m.Params = p;
+            }
+            else
+            {
+                if (name.Length == 0) name = p.TxFrequencyMHz.ToString("0.00", Inv) + " " + p.SymbolRateKs + "KS";
+                _s.Memories.Add(new TxMemory { Name = name, Params = p });
+            }
+            try { _s.Save(); } catch (Exception ex) { AppendLog("Could not save: " + ex.Message); }
+            RefreshMemories();
+            AppendLog("Stored \"" + name + "\".");
+        }
+
+        private void DeleteMemory()
+        {
+            var m = _lstMem.SelectedItem as TxMemory;
+            if (m == null) return;
+            if (MessageBox.Show(this, "Delete memory \"" + m.Name + "\"?", ProductTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            _s.Memories.Remove(m);
+            try { _s.Save(); } catch { }
+            RefreshMemories();
         }
 
         // ================================================================== parameters <-> UI
@@ -480,7 +793,7 @@ namespace DatvTx.UI
                 Pilots = _chkPilots.Checked,
                 RollOff = SelectedRollOff(),
                 TxFrequencyMHz = FirstNumber(_cmbFreq.Text, 2403.25),
-                GainDb = (double)_numGain.Value,
+                GainDb = SliderGainDb(),
                 RxEnabled = _chkRx.Checked,
                 RxFrequencyMHz = FirstNumber(_cmbRxFreq.Text, 10491.5),
                 RxSymbolRateKs = (int)FirstNumber(_cmbRxSr.Text, 1500)
@@ -513,8 +826,8 @@ namespace DatvTx.UI
                 _chkPilots.Checked = p.Pilots;
                 SelectRollOff(p.RollOff);
                 SelectOrText(_cmbFreq, p.TxFrequencyMHz.ToString("0.00", Inv));
-                _numGain.Maximum = (decimal)Math.Min(0, _s.PowerLimitDb);
-                _numGain.Value = Clamp((decimal)p.GainDb, _numGain.Minimum, _numGain.Maximum);
+                _trkPower.Maximum = Math.Max(-196, (int)Math.Round(Math.Min(0, _s.PowerLimitDb) * 4));
+                SetGainSlider(p.GainDb);
                 _numDGain.Value = 0;
                 _numDGain.Enabled = p.Constellation == "qpsk";
                 _chkRx.Checked = p.RxEnabled;
@@ -557,7 +870,7 @@ namespace DatvTx.UI
             try
             {
                 var p = ReadParams();
-                _lblBigFreq.Text = p.TxFrequencyMHz.ToString("0.00", Inv) + " MHz";
+                UpdateDownlink(p.TxFrequencyMHz);
                 double ts = DvbCalc.TsBitrateK(p);
                 var plan = EncodePlan.Build(p, _s, ts, false);
                 ShowPlan(p, plan, false);
@@ -567,8 +880,8 @@ namespace DatvTx.UI
 
         private void ShowPlan(TxParams p, EncodePlan plan, bool live)
         {
-            _lblTs.Text = "TS  " + plan.TsBitrateK.ToString("0", Inv) + " k" + (plan.TsFromDevice ? "  ✓" : "");
-            _lblVideo.Text = "Video  " + plan.VideoBitrateK.ToString("0", Inv) + " k";
+            _lblTs.Text = plan.TsBitrateK.ToString("0", Inv) + " kb/s" + (plan.TsFromDevice ? "  ✓" : "");
+            _lblVideo.Text = plan.VideoBitrateK.ToString("0", Inv) + " kb/s";
             _lblSummary.Text = string.Format(Inv, "{0} {1}  {2} KS  FEC {3}  {4}{5}\n{6} {7} @ {8:0.##} fps, audio {9} k",
                 p.DvbS2 ? "DVB-S2" : "DVB-S", p.Constellation.ToUpperInvariant(), p.SymbolRateKs, p.Fec,
                 p.ShortFrames ? "short" : "long", p.Pilots ? ", pilots" : "",
@@ -599,7 +912,8 @@ namespace DatvTx.UI
             _telemetry.Clear();
             _lblHardware.Text = _tx.DisplayName;
             _lblHelp.Text = _tx.HelpText;
-            _numGain.Maximum = (decimal)Math.Min(0, _s.PowerLimitDb);
+            _trkPower.Maximum = Math.Max(-196, (int)Math.Round(Math.Min(0, _s.PowerLimitDb) * 4));
+            if (_trkPower.Value > _trkPower.Maximum) _trkPower.Value = _trkPower.Maximum;
             UpdateHeader();
             UpdateButtons();
         }
@@ -690,7 +1004,7 @@ namespace DatvTx.UI
         {
             double f = FirstNumber(_cmbFreq.Text, 0);
             if (f < 70 || f > 6000) return;
-            _lblBigFreq.Text = f.ToString("0.00", Inv) + " MHz";
+            UpdateDownlink(f);
             if (CanLive() && _active != null && Math.Abs(_active.TxFrequencyMHz - f) > 0.0001)
             {
                 _active.TxFrequencyMHz = f;
@@ -923,22 +1237,6 @@ namespace DatvTx.UI
                 if (d.ShowDialog(this) == DialogResult.OK) _txtFile.Text = d.FileName;
         }
 
-        private void LoadProfile(int i)
-        {
-            var p = _s.Profiles[i];
-            if (p == null) { AppendLog("Profile " + (i + 1) + " is empty. Set things up and press Save " + (i + 1) + "."); return; }
-            ApplyParams(p);
-            AppendLog("Loaded profile " + (i + 1) + ": " + p.Summary());
-        }
-
-        private void SaveProfile(int i)
-        {
-            var p = ReadParams();
-            _s.Profiles[i] = p;
-            try { _s.Save(); AppendLog("Saved profile " + (i + 1) + ": " + p.Summary()); }
-            catch (Exception ex) { AppendLog("Could not save: " + ex.Message); }
-        }
-
         private void OpenSettings()
         {
             if (_running) return;
@@ -948,6 +1246,8 @@ namespace DatvTx.UI
                 if (f.ShowDialog(this) != DialogResult.OK) return;
                 f.Result.LastRun = current;
                 f.Result.Profiles = _s.Profiles;
+                f.Result.Memories = _s.Memories;
+                f.Result.ShowSpectrum = _s.ShowSpectrum;
                 _s = f.Result;
                 try { _s.Save(); } catch (Exception ex) { AppendLog("Could not save settings: " + ex.Message); }
             }
@@ -958,8 +1258,44 @@ namespace DatvTx.UI
 
         // ================================================================== misc
 
+        private void UpdateDownlink(double uplinkMHz)
+        {
+            double down = uplinkMHz + QoSpectrum.UplinkOffsetMHz;
+            _lblDownlink.Text = down > 10490 && down < 10500
+                ? "QO-100 downlink " + down.ToString("0.00", Inv) + " MHz"
+                : "";
+        }
+
         private void RefreshLive()
         {
+            // traffic light
+            bool ready = _tx != null && (!_tx.NeedsConnection || _tx.IsConnected);
+            _light.State = _running ? (_ptt ? TxLight.OnAir : TxLight.Standby) : ready ? TxLight.Ready : TxLight.Off;
+
+            string warn = null;
+            var stw = _lastStats;
+            double speed;
+            if (_running && stw != null && stw.Frame > 50 && double.TryParse(stw.Speed.TrimEnd('x'), NumberStyles.Float, Inv, out speed) && speed < 0.97)
+                warn = "Encoder too slow (" + stw.Speed + ") - lower size/fps or faster preset";
+            string ur;
+            long underruns;
+            if (_running && _telemetry.TryGetValue("mod/underruns", out ur) && long.TryParse(ur, out underruns))
+            {
+                if (_lastUnderruns >= 0 && underruns > _lastUnderruns) warn = "Radio buffer underrun - check USB / CPU load";
+                _lastUnderruns = underruns;
+            }
+            else _lastUnderruns = -1;
+            _light.SetWarning(warn != null, warn);
+            _light.Tick();
+
+            // spectrum marker
+            if (_spectrum != null && _s.ShowSpectrum)
+            {
+                double f = _active != null ? _active.TxFrequencyMHz : FirstNumber(_cmbFreq.Text, 0);
+                int sr = _active != null ? _active.SymbolRateKs : (int)FirstNumber(_cmbSr.Text, 0);
+                _spectrum.SetTransmit(f, sr, _running && _ptt);
+            }
+
             var st = _lastStats;
             if (_running && st != null)
             {
@@ -970,10 +1306,10 @@ namespace DatvTx.UI
 
             if (_telemetry.Count > 0)
             {
-                var lines = _telemetry.OrderBy(k => k.Key).Take(12).Select(k => (k.Key.Length > 26 ? k.Key.Substring(k.Key.Length - 26) : k.Key).PadRight(27) + k.Value);
-                _lblStatus.Text = "RADIO STATUS\n" + string.Join("\n", lines);
+                var lines = _telemetry.OrderBy(k => k.Key).Take(30).Select(k => (k.Key.Length > 26 ? k.Key.Substring(k.Key.Length - 26) : k.Key).PadRight(27) + k.Value);
+                _lblStatus.Text = string.Join("\n", lines);
             }
-            else _lblStatus.Text = "";
+            else _lblStatus.Text = "No radio status yet.";
         }
 
         private void AppendLog(string line)
@@ -1000,6 +1336,7 @@ namespace DatvTx.UI
             }
             try { _s.LastRun = ReadParams(); _s.Save(); } catch { }
             _uiTimer.Stop();
+            _spectrum.Stop();
             ClosePlayer();
             _ffmpeg.Dispose();
             if (_tx != null) { try { await _tx.DisconnectAsync(); } catch { } _tx.Dispose(); }

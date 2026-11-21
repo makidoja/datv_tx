@@ -204,6 +204,8 @@ namespace DatvTx.Core
         // ---------------- Not shown in the grid ----------------
         [Browsable(false)] public TxParams LastRun { get; set; } = new TxParams();
         [Browsable(false)] public List<TxParams> Profiles { get; set; } = new List<TxParams>();
+        [Browsable(false)] public List<TxMemory> Memories { get; set; } = new List<TxMemory>();
+        [Browsable(false)] public bool ShowSpectrum { get; set; } = true;
 
         [Browsable(false), JsonIgnore]
         public string EffectiveCmdRoot
@@ -269,7 +271,19 @@ namespace DatvTx.Core
             if (LastRun == null) LastRun = new TxParams();
             if (Profiles == null) Profiles = new List<TxParams>();
             while (Profiles.Count < 3) Profiles.Add(null);
+            if (Memories == null) Memories = new List<TxMemory>();
+            if (Memories.Count == 0)
+                for (int i = 0; i < Profiles.Count; i++)
+                    if (Profiles[i] != null) Memories.Add(new TxMemory { Name = "Profile " + (i + 1), Params = Profiles[i] });
         }
+    }
+
+    /// <summary>A named stored set-up (frequency, mode and encoder settings).</summary>
+    public class TxMemory
+    {
+        public string Name { get; set; } = "";
+        public TxParams Params { get; set; } = new TxParams();
+        public override string ToString() { return Name; }
     }
 
     /// <summary>

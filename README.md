@@ -42,10 +42,15 @@ stay under 85% of full scale in every mode. **First RF test: use a dummy load an
    *Send callsign to Pluto* once and reboot it (this replaces SETUP.bat).
 2. **SOURCE & ENCODER**: choose OBS Virtual Camera (or any capture device) plus an audio device, a UDP or RTMP
    stream, or a video file. Press ↻ to rescan the devices.
-3. **MODULATOR**: set the mode, SR, FEC, frequency and gain. The TS and video bitrates update as you change them.
-4. **START** starts the encoder with the carrier muted. Press **PTT** to go on air. Gain, frequency,
-   roll-off, digital gain and the RX frequency can be changed live.
-5. **Profiles 1-3** replace favorite-1..3.ini. The last run is restored when the app starts.
+3. **DVB tab**: set the mode, SR, FEC and the video/audio settings. The target TS and video bitrates update as you change them.
+   **QO-100 spectrum**: the BATC wideband spectrum is shown live. Click a channel block (125 KS, 333 KS or 1 MS rows)
+   to set the TX frequency and symbol rate, or click the trace to pick the nearest 250 kHz channel.
+   Set the power with the slider. It can't go above the power limit set in Settings.
+4. **START** starts the encoder with the carrier muted (amber light: STANDBY). Press **PTT** to go on air
+   (red light: ON AIR). Power, frequency, roll-off, digital gain and the RX frequency can be changed live.
+   The amber light flashes if the encoder can't keep up or the radio's buffer runs dry.
+5. **MEMORIES**: store named set-ups (frequency, mode, codec, power) and recall them with a double-click.
+   Any old profiles 1-3 are moved into memories automatically. The last run is restored when the app starts.
 
 Run modes (in Settings): *Encode* (normal), *Control only* (DATV-NotSoEasy Light: OBS or another
 encoder streams to the Pluto itself), *Relay* (Longmynd RX re-transmitted).
