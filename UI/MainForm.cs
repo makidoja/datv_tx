@@ -26,6 +26,8 @@ namespace DatvTx.UI
         private TxParams _active;
         private readonly ConcurrentDictionary<string, string> _telemetry = new ConcurrentDictionary<string, string>();
         private EncoderStats _lastStats;
+        private LinkLabel _lnkUpdate;
+        private Label _lblCredit;
         private DateTime? _slowSince;
         private readonly Timer _uiTimer = new Timer { Interval = 500 };
         private readonly Timer _gainTimer = new Timer { Interval = 200 };
@@ -83,7 +85,7 @@ namespace DatvTx.UI
             _s = AppSettings.Load();
             using (var g = CreateGraphics()) Theme.Scale = Math.Max(1f, g.DpiX / 96f);
 
-            Text = ProductTitle;
+            Text = ProductTitle + "  v" + UpdateChecker.DisplayVersion(Application.ProductVersion);
             Icon = Theme.AppIcon();
             BackColor = Theme.Bg;
             ForeColor = Theme.Text;
@@ -122,7 +124,7 @@ namespace DatvTx.UI
             _uiTimer.Start();
             _gainTimer.Tick += async (s, e) => { _gainTimer.Stop(); await GainCommitted(); };
 
-            Load += async (s, e) => { Theme.DarkTitleBar(this); await RefreshDevicesAsync(); };
+            Load += async (s, e) => { Theme.DarkTitleBar(this); await RefreshDevicesAsync(); await CheckForUpdateAsync(); };
             FormClosing += OnClosing;
         }
 
@@ -244,7 +246,7 @@ namespace DatvTx.UI
             p.Margin = new Padding(S(0));
 
             var title = new Label { Text = "◉  " + ProductTitle, AutoSize = true, Location = new Point(S(16), S(8)), ForeColor = Theme.Text, Font = Theme.Semi(14f) };
-            var credit = new Label { Text = "v" + Application.ProductVersion + "  •  based on DATV-NotSoEasy by DL5OCD", AutoSize = true, Location = new Point(S(20), S(42)), ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
+            var credit = _lblCredit = new Label { Text = "v" + UpdateChecker.DisplayVersion(Application.ProductVersion) + "  •  based on DATV-NotSoEasy by DL5OCD", AutoSize = true, Location = new Point(S(20), S(42)), ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
             _lblHardware = new Label { AutoSize = true, Location = new Point(S(330), S(12)), ForeColor = Theme.Text, Font = Theme.Semi(10f) };
             _lblHelp = new Label { AutoSize = false, Location = new Point(S(330), S(34)), Size = new Size(S(400), S(32)), ForeColor = Theme.Muted, Font = Theme.Ui(8.5f) };
 
@@ -260,7 +262,18 @@ namespace DatvTx.UI
             _btnSpectrum.Size = new Size(S(124), S(38));
             _btnSpectrum.Click += (s, e) => ShowSpectrum(!_s.ShowSpectrum);
 
-            p.Controls.AddRange(new Control[] { title, credit, _lblHardware, _lblHelp, _btnSpectrum, _btnConnect, _btnSettings });
+            _lnkUpdate = new LinkLabel
+            {
+                AutoSize = true, Visible = false, Font = Theme.Semi(8.5f),
+                LinkColor = Theme.Amber, ActiveLinkColor = Theme.Text, VisitedLinkColor = Theme.Amber, LinkBehavior = LinkBehavior.HoverUnderline
+            };
+            _lnkUpdate.LinkClicked += (s, e) =>
+            {
+                try { Process.Start(new ProcessStartInfo((string)_lnkUpdate.Tag ?? UpdateChecker.ReleasesPage) { UseShellExecute = true }); } catch { }
+            };
+            credit.SizeChanged += (s, e) => _lnkUpdate.Location = new Point(credit.Right + S(6), credit.Top);
+            _lnkUpdate.Location = new Point(credit.Right + S(6), credit.Top);
+            p.Controls.AddRange(new Control[] { title, credit, _lnkUpdate, _lblHardware, _lblHelp, _btnSpectrum, _btnConnect, _btnSettings });
             p.Resize += (s, e) =>
             {
                 _btnSettings.Location = new Point(p.Width - _btnSettings.Width - S(14), S(15));
@@ -1297,6 +1310,23 @@ namespace DatvTx.UI
         }
 
         // ================================================================== misc
+
+        private async Task CheckForUpdateAsync()
+        {
+            if (!_s.CheckForUpdates) return;
+            try
+            {
+                var r = await UpdateChecker.CheckAsync(Application.ProductVersion);
+                if (r == null || IsDisposed) return;
+                _lblCredit.Text = "v" + UpdateChecker.DisplayVersion(Application.ProductVersion) + "  •";
+                _lnkUpdate.Text = r.Tag + " available - click to download";
+                Text = ProductTitle + "  v" + UpdateChecker.DisplayVersion(Application.ProductVersion) + "   (" + r.Tag + " available)";
+                _lnkUpdate.Tag = r.Url;
+                _lnkUpdate.Visible = true;
+                AppendLog("New version " + r.Tag + " available: " + r.Url);
+            }
+            catch { } // offline or GitHub unavailable: say nothing
+        }
 
         private static void SetLabel(Label l, string text, Color colour)
         {

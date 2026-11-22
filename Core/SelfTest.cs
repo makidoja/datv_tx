@@ -57,6 +57,19 @@ namespace DatvTx.Core
                 log.AppendLine((present ? "HAVE " : "MISSING ") + c.Value);
             }
 
+            // Update check against the real GitHub releases
+            try
+            {
+                var old = UpdateChecker.CheckAsync("0.0.1-beta").GetAwaiter().GetResult();
+                bool okOld = old != null;
+                log.AppendLine((okOld ? "PASS" : "FAIL") + " update check from 0.0.1-beta -> " + (old != null ? old.Tag + " " + old.Url : "none"));
+                if (!okOld) failures++;
+                var none = UpdateChecker.CheckAsync("99.0.0").GetAwaiter().GetResult();
+                log.AppendLine((none == null ? "PASS" : "FAIL") + " update check from 99.0.0 -> " + (none != null ? none.Tag : "none"));
+                if (none != null) failures++;
+            }
+            catch (Exception ex) { log.AppendLine("FAIL update check: " + ex.Message); failures++; }
+
             log.AppendLine(failures == 0 ? "SELFTEST OK" : "SELFTEST FAILED: " + failures);
             File.WriteAllText(logPath, log.ToString());
             return failures == 0 ? 0 : 1;

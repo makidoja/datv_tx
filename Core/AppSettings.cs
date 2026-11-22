@@ -171,6 +171,9 @@ namespace DatvTx.Core
         public int FileLoop { get; set; } = -1;
 
         // ---------------- Transport stream (advanced) ----------------
+        [Category("9 Updates"), DisplayName("Check for updates"), Description("Look for a newer release on GitHub when the app starts.")]
+        public bool CheckForUpdates { get; set; } = true;
+
         [Category("7 Transport stream"), DisplayName("Audio sync offset (s)")]
         public double AudioOffset { get; set; } = -0.20;
         [Category("7 Transport stream"), DisplayName("Video PID")] public int VideoPid { get; set; } = 256;
