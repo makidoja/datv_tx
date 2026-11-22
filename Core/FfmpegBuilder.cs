@@ -90,7 +90,7 @@ namespace DatvTx.Core
             {
                 case "h264_nvenc":
                 case "hevc_nvenc":
-                    a.Add("-preset " + s.PresetHard + " -r " + fps + " -rc-lookahead 10 -no-scenecut 1 -zerolatency 1 -b_ref_mode 0 -bf 0");
+                    a.Add("-preset " + (string.IsNullOrWhiteSpace(s.PresetHard) ? Codecs.NvencPreset(preset) : s.PresetHard.Trim()) + " -r " + fps + " -rc-lookahead 10 -no-scenecut 1 -zerolatency 1 -b_ref_mode 0 -bf 0");
                     a.Add(shaping);
                     break;
                 case "libx264":

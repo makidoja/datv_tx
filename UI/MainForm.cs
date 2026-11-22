@@ -26,6 +26,7 @@ namespace DatvTx.UI
         private TxParams _active;
         private readonly ConcurrentDictionary<string, string> _telemetry = new ConcurrentDictionary<string, string>();
         private EncoderStats _lastStats;
+        private DateTime? _slowSince;
         private readonly Timer _uiTimer = new Timer { Interval = 500 };
         private readonly Timer _gainTimer = new Timer { Interval = 200 };
         private long _lastUnderruns = -1;
@@ -1329,8 +1330,14 @@ namespace DatvTx.UI
 
             string warn = null;
             var stw = _lastStats;
-            double speed;
-            if (_running && stw != null && stw.Frame > 50 && double.TryParse(stw.Speed.TrimEnd('x'), NumberStyles.Float, Inv, out speed) && speed < 0.97)
+            // Only warn when the encoder has been genuinely behind real time for several seconds:
+            // live sources wobble a little, and the first seconds include the device start-up.
+            if (_running && stw != null && stw.Elapsed > 6 && !double.IsNaN(stw.SpeedNow))
+            {
+                if (stw.SpeedNow < 0.93) _slowSince = _slowSince ?? DateTime.Now; else _slowSince = null;
+            }
+            else _slowSince = null;
+            if (_slowSince.HasValue && (DateTime.Now - _slowSince.Value).TotalSeconds >= 5)
                 warn = "Encoder too slow (" + stw.Speed + ") - try a GPU codec or faster preset";
             string ur;
             long underruns;
@@ -1358,7 +1365,7 @@ namespace DatvTx.UI
             if (_running && st != null)
             {
                 _lblStats.Text = string.Format(Inv, "Encoder  {0:0.#} fps   {1}   speed {2}{3}", st.Fps, st.Bitrate, st.Speed, st.Dropped > 0 ? "   dropped " + st.Dropped : "");
-                _lblStats.ForeColor = st.Speed.StartsWith("0.", StringComparison.Ordinal) ? Theme.Amber : Theme.Muted;
+                _lblStats.ForeColor = _slowSince.HasValue ? Theme.Amber : Theme.Muted;
             }
             else if (_running && _s.Mode != RunMode.Encode) _lblStats.Text = "Control mode running";
 

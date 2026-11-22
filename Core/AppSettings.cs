@@ -154,8 +154,8 @@ namespace DatvTx.Core
         [Category("5 Encoder"), DisplayName("VVC preset")]
         public string PresetVvc { get; set; } = "faster";
 
-        [Category("5 Encoder"), DisplayName("NVIDIA preset")]
-        public string PresetHard { get; set; } = "slow";
+        [Category("5 Encoder"), DisplayName("NVIDIA preset"), Description("Blank = follow the Speed preset on the SOURCE tab (p1 fastest to p7 best). Or enter an NVENC preset such as p4 or slow.")]
+        public string PresetHard { get; set; } = "";
 
         [Category("5 Encoder"), DisplayName("AV1 quality (1-63)")]
         public int Av1Quality { get; set; } = 10;
@@ -288,6 +288,12 @@ namespace DatvTx.Core
                 // v0.1 used DATV-NotSoEasy's PWRLIM of -10 dB; the slider now goes to 0 dB by default.
                 if (PowerLimitDb == -10) PowerLimitDb = 0;
                 SettingsVersion = 2;
+            }
+            if (SettingsVersion < 3)
+            {
+                // v0.1.2 and earlier always ran NVENC at "slow" (DATV-NotSoEasy); now it follows the Speed preset.
+                if (PresetHard == "slow") PresetHard = "";
+                SettingsVersion = 3;
             }
             if (Memories == null) Memories = new List<TxMemory>();
             if (Memories.Count == 0)

@@ -192,6 +192,14 @@ namespace DatvTx.Core
 
         public static readonly string[] Presets = { "ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow" };
 
+        /// <summary>NVENC presets p1 (fastest) to p7 (best) for the x264-style speed presets.</summary>
+        public static string NvencPreset(string preset)
+        {
+            int i = System.Array.IndexOf(Presets, preset);
+            if (i < 0) i = 2;
+            return new[] { "p1", "p2", "p3", "p4", "p4", "p5", "p6" }[i];
+        }
+
         /// <summary>AMD AMF has three quality levels instead of x264-style presets.</summary>
         public static string AmfQuality(string preset)
         {

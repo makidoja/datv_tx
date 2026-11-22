@@ -14,6 +14,10 @@ namespace DatvTx.Core
         public string Bitrate = "";
         public string Speed = "";
         public int Dropped;
+        /// <summary>Current speed over the last few seconds (1.0 = real time); NaN until known.</summary>
+        public double SpeedNow = double.NaN;
+        /// <summary>Seconds since the first progress line.</summary>
+        public double Elapsed;
     }
 
     /// <summary>Runs ffmpeg as a child process and reports progress.</summary>
@@ -22,6 +26,15 @@ namespace DatvTx.Core
         private Process _proc;
         private static readonly Regex StatsRx = new Regex(@"frame=\s*(\d+)\s+fps=\s*([\d.]+).*?bitrate=\s*(\S+).*?speed=\s*(\S+)", RegexOptions.Compiled);
         private static readonly Regex DropRx = new Regex(@"drop=\s*(\d+)", RegexOptions.Compiled);
+        private static readonly Regex SizeRx = new Regex(@"size=\s*(\d+)\s*(KiB|kB|MiB|MB|B)", RegexOptions.Compiled);
+        private static readonly Regex TimeRx = new Regex(@"time=\s*(-?)(\d+):(\d+):([\d.]+)", RegexOptions.Compiled);
+
+        // ffmpeg prints averages since the start, which read low for a long time after the slow
+        // device start-up. Keep recent samples and report rates over the last ~3 seconds instead.
+        private struct Sample { public double Wall, Media, Bytes; public long Frame; }
+        private readonly Queue<Sample> _window = new Queue<Sample>();
+        private readonly Stopwatch _clock = new Stopwatch();
+        private const double WindowSeconds = 3.0;
 
         public event Action<string> Log;
         public event Action<EncoderStats> Stats;
@@ -43,6 +56,8 @@ namespace DatvTx.Core
                 RedirectStandardInput = true,
                 WorkingDirectory = Path.GetDirectoryName(exe)
             };
+            _window.Clear();
+            _clock.Reset();
             _proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
             _proc.ErrorDataReceived += (s, e) => { if (e.Data != null) HandleLine(e.Data); };
             _proc.OutputDataReceived += (s, e) => { if (e.Data != null) RaiseLog(e.Data); };
@@ -62,15 +77,45 @@ namespace DatvTx.Core
             var m = StatsRx.Match(line);
             if (m.Success)
             {
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
                 var st = new EncoderStats
                 {
                     Frame = long.Parse(m.Groups[1].Value),
-                    Fps = double.Parse(m.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture),
+                    Fps = double.Parse(m.Groups[2].Value, inv),
                     Bitrate = m.Groups[3].Value,
                     Speed = m.Groups[4].Value
                 };
                 var d = DropRx.Match(line);
                 if (d.Success) st.Dropped = int.Parse(d.Groups[1].Value);
+
+                var tm = TimeRx.Match(line);
+                var sz = SizeRx.Match(line);
+                if (tm.Success && tm.Groups[1].Value != "-")
+                {
+                    if (!_clock.IsRunning) _clock.Start();
+                    double media = int.Parse(tm.Groups[2].Value) * 3600 + int.Parse(tm.Groups[3].Value) * 60 + double.Parse(tm.Groups[4].Value, inv);
+                    double bytes = double.NaN;
+                    if (sz.Success)
+                    {
+                        double mult = sz.Groups[2].Value == "KiB" ? 1024 : sz.Groups[2].Value == "kB" ? 1000 : sz.Groups[2].Value == "MiB" ? 1048576 : sz.Groups[2].Value == "MB" ? 1e6 : 1;
+                        bytes = double.Parse(sz.Groups[1].Value, inv) * mult;
+                    }
+                    var now = new Sample { Wall = _clock.Elapsed.TotalSeconds, Media = media, Bytes = bytes, Frame = st.Frame };
+                    _window.Enqueue(now);
+                    while (_window.Count > 2 && now.Wall - _window.Peek().Wall > WindowSeconds) _window.Dequeue();
+                    st.Elapsed = now.Wall;
+                    var first = _window.Peek();
+                    double dw = now.Wall - first.Wall;
+                    if (dw >= 1.0)
+                    {
+                        st.Fps = (now.Frame - first.Frame) / dw;
+                        st.SpeedNow = (now.Media - first.Media) / dw;
+                        st.Speed = st.SpeedNow.ToString("0.00", inv) + "x";
+                        double dm = now.Media - first.Media;
+                        if (!double.IsNaN(bytes) && !double.IsNaN(first.Bytes) && dm > 0.5)
+                            st.Bitrate = ((now.Bytes - first.Bytes) * 8 / dm / 1000).ToString("0.0", inv) + "kbits/s";
+                    }
+                }
                 var h = Stats; if (h != null) h(st);
                 return;
             }
