@@ -7,8 +7,8 @@
     <AssemblyName>DatvTx</AssemblyName>
     <RootNamespace>DatvTx</RootNamespace>
     <PlatformTarget>x64</PlatformTarget>
-    <Version>0.1.2</Version>
-    <InformationalVersion>0.1.2-beta</InformationalVersion>
+    <Version>0.1.3</Version>
+    <InformationalVersion>0.1.3-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>DATV TX (M0CKE)</Product>
     <Company>M0CKE</Company>

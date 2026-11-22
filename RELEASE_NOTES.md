@@ -1,4 +1,12 @@
-## DATV TX (M0CKE) v0.1.2 beta
+## DATV TX (M0CKE) v0.1.3 beta
+
+**Fixed in 0.1.3:** the encoder fps, bitrate and speed readings now show current values (last 3 seconds).
+Before, they were FFmpeg's averages since the start, so they read low for a long time after starting.
+**Fixed in 0.1.3:** "Encoder too slow" no longer appears for short hiccups; it needs 5 seconds below 0.93x.
+**Changed in 0.1.3:** NVIDIA NVENC now follows the Speed preset (p1 fastest to p7 best) instead of always
+using "slow", which could hold back cards such as the RTX 2060. Settings → NVIDIA preset can override it.
+**Changed in 0.1.3:** the PTT button reads PTT when off (ON AIR in red when transmitting).
+
 
 **New in 0.1.2:** BATC **Muntjac** (70 cm / 13 cm) support over USB: DVB-S2 QPSK/8PSK, 125–1000 KS,
 frequency, power and PTT live. Found automatically on its COM port. *Tested on air on 70 cm and QO-100 (13 cm), 125 and 500 KS.*
@@ -20,8 +28,8 @@ DL5OCD's **DATV-NotSoEasy** batch scripts in the OpenTuner M0CKE style: the same
 bitrate maths, without the console menus.
 
 ### Downloads
-- **DatvTx-M0CKE-0.1.2-beta-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
-- **DatvTx-M0CKE-0.1.2-beta-portable.zip**: the same files, to unzip and run.
+- **DatvTx-M0CKE-0.1.3-beta-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
+- **DatvTx-M0CKE-0.1.3-beta-portable.zip**: the same files, to unzip and run.
 
 Both include FFmpeg (x264, x265, H.266 VVC, AV1, NVENC, AMD AMF, Intel QSV), the LimeSDR Mini library
 (LimeSuite 23.11) and the HackRF library (libhackrf with libusb). Windows 10/11 64-bit, .NET Framework 4.7.2+.
