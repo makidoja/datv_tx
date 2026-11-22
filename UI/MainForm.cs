@@ -1298,20 +1298,25 @@ namespace DatvTx.UI
 
         // ================================================================== misc
 
+        private static void SetLabel(Label l, string text, Color colour)
+        {
+            if (l.Text != text) l.Text = text;
+            if (l.ForeColor != colour) l.ForeColor = colour;
+        }
+
         private void ShowDbb()
         {
             if (_lblDbb == null) return;
             bool onAir = _running && _ptt;
-            if (!_s.ShowSpectrum) { _lblDbb.Text = "QO-100 level: spectrum hidden"; _lblDbb.ForeColor = Theme.Muted; return; }
+            if (!_s.ShowSpectrum) { SetLabel(_lblDbb, "QO-100 level: spectrum hidden", Theme.Muted); return; }
             if (double.IsNaN(_dbb))
             {
-                _lblDbb.Text = onAir ? "QO-100 level: not seen yet" : "QO-100 level vs beacon: -";
-                _lblDbb.ForeColor = Theme.Muted;
+                SetLabel(_lblDbb, onAir ? "QO-100 level: not seen yet" : "QO-100 level vs beacon: -", Theme.Muted);
                 return;
             }
             string v = (_dbb >= 0 ? "+" : "") + _dbb.ToString("0.0", Inv) + " dBb";
-            _lblDbb.Text = (onAir ? "Your signal  " : "Channel  ") + v + (_dbb >= 0 ? "   ABOVE BEACON" : "");
-            _lblDbb.ForeColor = onAir ? QoSpectrum.DbbColour(_dbb) : Theme.Muted;
+            SetLabel(_lblDbb, (onAir ? "Your signal  " : "Channel  ") + v + (_dbb >= 0 ? "   ABOVE BEACON" : ""),
+                onAir ? QoSpectrum.DbbColour(_dbb) : Theme.Muted);
         }
 
         private void UpdateDownlink(double uplinkMHz)

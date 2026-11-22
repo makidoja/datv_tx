@@ -32,6 +32,15 @@ namespace DatvTx.UI
 
         private static readonly Color DisabledBack = Color.FromArgb(14, 30, 48);
 
+        [StructLayout(LayoutKind.Sequential)]
+        private struct PAINTSTRUCT
+        {
+            public IntPtr hdc; public bool fErase; public RECT rcPaint; public bool fRestore, fIncUpdate;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)] public byte[] rgbReserved;
+        }
+        [DllImport("user32.dll")] private static extern IntPtr BeginPaint(IntPtr hwnd, out PAINTSTRUCT ps);
+        [DllImport("user32.dll")] private static extern bool EndPaint(IntPtr hwnd, ref PAINTSTRUCT ps);
+
         [DllImport("gdi32.dll")] private static extern int SetTextColor(IntPtr hdc, int color);
         [DllImport("gdi32.dll")] private static extern int SetBkColor(IntPtr hdc, int color);
         [DllImport("gdi32.dll")] private static extern IntPtr CreateSolidBrush(int color);
@@ -61,6 +70,18 @@ namespace DatvTx.UI
                 SetTextColor(m.WParam, ColorTranslator.ToWin32(Enabled ? Theme.Text : Theme.Muted));
                 SetBkColor(m.WParam, ColorTranslator.ToWin32(Enabled ? Theme.Surface2 : DisabledBack));
                 m.Result = Brush(Enabled);
+                return;
+            }
+            // Editable combos: the text is a separate edit window, so the combo itself only draws its
+            // frame and button. Paint those ourselves instead of letting Windows draw its white frame
+            // first, which flashed whenever the combo repainted.
+            if (m.Msg == 0x000F && DropDownStyle == ComboBoxStyle.DropDown && IsHandleCreated)
+            {
+                PAINTSTRUCT ps;
+                BeginPaint(Handle, out ps);
+                PaintFace();
+                EndPaint(Handle, ref ps);
+                m.Result = IntPtr.Zero;
                 return;
             }
             base.WndProc(ref m);
