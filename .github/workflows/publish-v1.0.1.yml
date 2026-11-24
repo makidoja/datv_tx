@@ -1,0 +1,18 @@
+name: Publish v1.0.1
+
+# Committing this file publishes the release: it runs the normal Windows build and creates
+# the v1.0.1 tag and GitHub release with the installer and portable zip attached.
+on:
+  push:
+    branches: [ main ]
+    paths: [ '.github/workflows/publish-v1.0.1.yml' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    uses: ./.github/workflows/build.yml
+    with:
+      release_tag: v1.0.1

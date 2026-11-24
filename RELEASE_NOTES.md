@@ -1,18 +1,25 @@
-## DATV TX (M0CKE) v1.0.0
+## DATV TX (M0CKE) v1.0.1
 
-The first full release of DATV TX: a Windows DATV transmitter for QO-100 and terrestrial use. It's a GUI
+### Fixed in 1.0.1
+- Boxes you can type in (frequency, symbol rate, image size, frame rate, video and audio device) no longer
+  show their text highlighted in blue. The text is only selected while you're typing in the box.
+- Fields that are locked while transmitting keep the normal background, with only the text greyed out.
+
+### About DATV TX
+
+A Windows DATV transmitter for QO-100 and terrestrial use. It's a GUI
 rewrite of DL5OCD's **DATV-NotSoEasy** batch scripts in the OpenTuner M0CKE style, with the same encoder
 settings and bitrate maths and no console menus. Thanks to everyone who tested the betas.
 
-### New since the last beta (0.1.3)
+### New in 1.0.0 (since the last beta, 0.1.3)
 - The version number is in the title bar.
 - **Update check:** at start-up the app looks on GitHub for a newer release and shows a "click to download"
   link if there is one. It says nothing when offline. Settings → Updates turns it off.
 - Fixed: the frequency box frame no longer flashes white while transmitting.
 
 ### Downloads
-- **DatvTx-M0CKE-1.0.0-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
-- **DatvTx-M0CKE-1.0.0-portable.zip**: the same files, to unzip and run.
+- **DatvTx-M0CKE-1.0.1-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
+- **DatvTx-M0CKE-1.0.1-portable.zip**: the same files, to unzip and run.
 
 Both include FFmpeg (x264, x265, H.266 VVC, AV1, NVENC, AMD AMF, Intel QSV), the LimeSDR Mini library
 (LimeSuite 23.11) and the HackRF library (libhackrf with libusb). NVIDIA encoding uses a bundled FFmpeg 7.1, which
