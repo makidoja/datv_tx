@@ -125,7 +125,50 @@ namespace DatvTx.UI
         protected override void OnResize(EventArgs e) { base.OnResize(e); ClearSelectionNow(); ClearSelectionLater(); }
         protected override void OnLayout(LayoutEventArgs e) { base.OnLayout(e); ClearSelectionNow(); ClearSelectionLater(); }
         protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); ClearSelectionLater(); }
-        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); ClearSelectionLater(); }
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            if (DropDownStyle == ComboBoxStyle.DropDown)
+            {
+                var info = new COMBOBOXINFO { cbSize = Marshal.SizeOf(typeof(COMBOBOXINFO)) };
+                if (GetComboBoxInfo(Handle, ref info) && info.hwndItem != IntPtr.Zero)
+                {
+                    if (_edit != null) _edit.ReleaseHandle();
+                    _edit = new EditGuard(this);
+                    _edit.AssignHandle(info.hwndItem);
+                }
+            }
+            ClearSelectionLater();
+        }
+
+        protected override void OnHandleDestroyed(EventArgs e)
+        {
+            if (_edit != null) { _edit.ReleaseHandle(); _edit = null; }
+            base.OnHandleDestroyed(e);
+        }
+
+        private EditGuard _edit;
+
+        /// <summary>
+        /// Sits on the edit box inside the combo. Windows (and WinForms) send it "select all" on resize,
+        /// layout and when text is set from code; unless the user is typing, turn that into "no selection".
+        /// </summary>
+        private sealed class EditGuard : NativeWindow
+        {
+            private readonly DarkCombo _owner;
+            public EditGuard(DarkCombo owner) { _owner = owner; }
+
+            protected override void WndProc(ref Message m)
+            {
+                const int EM_SETSEL = 0x00B1;
+                if (m.Msg == EM_SETSEL && !_owner.Typing)
+                {
+                    m.WParam = IntPtr.Zero;
+                    m.LParam = IntPtr.Zero;
+                }
+                base.WndProc(ref m);
+            }
+        }
         protected override void OnLostFocus(EventArgs e) { base.OnLostFocus(e); ClearSelectionLater(); }
 
         protected override void OnKeyDown(KeyEventArgs e)
