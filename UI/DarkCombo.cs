@@ -30,7 +30,7 @@ namespace DatvTx.UI
         [DllImport("user32.dll")]
         private static extern bool GetComboBoxInfo(IntPtr hwnd, ref COMBOBOXINFO info);
 
-        private static readonly Color DisabledBack = Color.FromArgb(14, 30, 48);
+        private static readonly Color DisabledBack = Theme.Surface2; // same face as enabled; only the text greys out
 
         [StructLayout(LayoutKind.Sequential)]
         private struct PAINTSTRUCT
@@ -119,11 +119,36 @@ namespace DatvTx.UI
             ClearSelectionLater();
         }
 
+        // Windows selects the whole text of an editable combo whenever it is resized or laid out
+        // (and when its text is set from code), which shows as a blue highlight. Clear it whenever
+        // nobody is typing in the box.
+        protected override void OnResize(EventArgs e) { base.OnResize(e); ClearSelectionNow(); ClearSelectionLater(); }
+        protected override void OnLayout(LayoutEventArgs e) { base.OnLayout(e); ClearSelectionNow(); ClearSelectionLater(); }
+        protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); ClearSelectionLater(); }
+        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); ClearSelectionLater(); }
+        protected override void OnLostFocus(EventArgs e) { base.OnLostFocus(e); ClearSelectionLater(); }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            // After Enter the value is committed: put the caret at the end instead of highlighting it all.
+            if (e.KeyCode == Keys.Enter && DropDownStyle == ComboBoxStyle.DropDown && IsHandleCreated)
+                try { BeginInvoke((Action)(() => { try { SelectionStart = Text.Length; SelectionLength = 0; } catch { } })); } catch { }
+        }
+
+        private bool Typing { get { return Enabled && (Focused || ContainsFocus); } }
+
+        private void ClearSelectionNow()
+        {
+            if (DropDownStyle != ComboBoxStyle.DropDown || !IsHandleCreated || Typing) return;
+            try { if (SelectionLength != 0) SelectionLength = 0; } catch { }
+        }
+
         /// <summary>Stops the whole text showing highlighted when it is set from code.</summary>
         private void ClearSelectionLater()
         {
-            if (DropDownStyle != ComboBoxStyle.DropDown || Focused || !IsHandleCreated) return;
-            try { BeginInvoke((Action)(() => { try { if (!Focused) SelectionLength = 0; } catch { } })); } catch { }
+            if (DropDownStyle != ComboBoxStyle.DropDown || !IsHandleCreated || Typing) return;
+            try { BeginInvoke((Action)ClearSelectionNow); } catch { }
         }
 
         protected override void OnDrawItem(DrawItemEventArgs e)
