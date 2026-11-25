@@ -27,7 +27,7 @@ jobs:
       - name: Packages (build tools, FFmpeg for the self-test)
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build ffmpeg file desktop-file-utils
+          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build ffmpeg file desktop-file-utils libiio0
           ffmpeg -hide_banner -version | head -1
           ffmpeg -hide_banner -devices 2>/dev/null | grep -E "v4l2|pulse|alsa" || true
 
@@ -45,6 +45,10 @@ jobs:
           cmake -S modhelper -B modhelper/build-linux -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build modhelper/build-linux
           ./modhelper/build-linux/datvtx_mod --bitrate --radio lime --sr 333000 --const qpsk --fec 2/3 | grep BITRATE
+          # the standard-Pluto path must load the system libiio and look for a Pluto
+          o=$(./modhelper/build-linux/datvtx_mod --radio pluto --device ip:127.0.0.1 --sr 333000 --fec 1/2 --port 0 2>&1 || true)
+          echo "$o"
+          echo "$o" | grep -q "no Pluto answered" || { echo "libiio binding failed"; exit 1; }
 
       - name: App (self-contained .NET 8, linux-x64)
         run: |

@@ -11,6 +11,7 @@ calculations and Pluto MQTT commands, without the console menus.
 | ADALM-Pluto, F5OEO MQTT firmware | ffmpeg → UDP to the Pluto, settings over MQTT | Everything: frequency, SR, FEC, power, PTT, roll-off, digital gain |
 | ADALM-Pluto, F5OEO 0303 firmware | ffmpeg → UDP to the Pluto; settings sent to the Pluto's own web pages (no browser needed) | Frequency, power and PTT live; SR, FEC and mode set at START. Set the Pluto once to Main mode DATV, operating mode UDP. *Not yet tested on a real 0303 Pluto* |
 | ADALM-Pluto, older F5OEO firmware | ffmpeg → UDP to the Pluto | Stream only. Set the radio up in its web page |
+| ADALM-Pluto (or clone), standard ADI firmware | ffmpeg → UDP → `datvtx_mod` makes the DVB-S/S2 signal → IQ to the Pluto via libiio (network or USB) | Frequency, power and PTT live; SR, FEC and mode set at START. *Not yet tested on a real Pluto* |
 | LimeSDR Mini | ffmpeg → UDP → built-in modulator (`datvtx_mod.exe`) → LimeSuite | Frequency, gain and PTT live; SR, FEC and mode set at START |
 | HackRF One | ffmpeg → UDP → built-in modulator (`datvtx_mod.exe`) → libhackrf | Frequency, gain and PTT live; SR, FEC and mode set at START |
 | BATC Muntjac (70 cm / 13 cm) | ffmpeg → UDP → `datvtx_mod.exe` makes DVB-S2 frames → USB serial to the Muntjac | Frequency (same band), power and PTT live; SR, FEC and mode set at START |

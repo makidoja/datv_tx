@@ -167,7 +167,8 @@ static int RunEsp32(const Esp32Config &ec, const std::string &device, double gai
 
 static int AutoUpsample(const std::string &radio, int sr)
 {
-    double minRate = radio == "hackrf" ? 2.0e6 : 1.0e6; // HackRF needs >= 2 MS/s
+    // HackRF needs >= 2 MS/s; the Pluto's AD9363 >= 2.083 MS/s without its FIR decimation
+    double minRate = radio == "hackrf" ? 2.0e6 : radio == "pluto" ? 2.1e6 : 1.0e6;
     int L = (int)std::ceil(minRate / sr);
     if (L < 2) L = 2;
     if (L > 64) L = 64;
@@ -291,6 +292,7 @@ int main(int argc, char **argv)
     rc.calibrate = cal;
     rc.driverDirs = driverDirs;
     rc.filePath = outFile;
+    rc.uri = device;
 #ifdef _WIN32
     rc.driverDirs.push_back("C:/Program Files/PothosSDR/bin");
 #endif

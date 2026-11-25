@@ -26,8 +26,9 @@ namespace DatvTx.Hardware
         private bool IsHackRf { get { return _radio == "hackrf"; } }
         private bool IsMuntjac { get { return _radio == "muntjac"; } }
         private bool IsEsp32 { get { return _radio == "esp32"; } }
+        private bool IsPluto { get { return _radio == "pluto"; } }
 
-        public override string DisplayName { get { return IsEsp32 ? "ESP32-C3 DATV" : IsMuntjac ? "BATC Muntjac" : IsHackRf ? "HackRF One" : "LimeSDR Mini"; } }
+        public override string DisplayName { get { return IsPluto ? "Pluto (standard firmware) " + Settings.PlutoIp : IsEsp32 ? "ESP32-C3 DATV" : IsMuntjac ? "BATC Muntjac" : IsHackRf ? "HackRF One" : "LimeSDR Mini"; } }
 
         public override double[] RollOffs
         {
@@ -47,6 +48,11 @@ namespace DatvTx.Hardware
                 double half = p.SymbolRateKs * 1.35 / 2000.0;
                 if (p.TxFrequencyMHz - half < 2300 || p.TxFrequencyMHz + half > 2450) return "The ESP32-DATV firmware transmits only in 2300-2450 MHz.";
                 if (Settings.Esp32MaxLevel < 1 || Settings.Esp32MaxLevel > 480) return "Settings → ESP32 level at 0 dB must be 1 to 480.";
+                return null;
+            }
+            if (IsPluto)
+            {
+                if (p.TxFrequencyMHz < 70 || p.TxFrequencyMHz > 6000) return "Pluto frequency must be 70 to 6000 MHz (325-3800 MHz unless the Pluto is set up as an AD9364).";
                 return null;
             }
             if (!IsMuntjac) return null;
@@ -101,6 +107,8 @@ namespace DatvTx.Hardware
         {
             get
             {
+                if (IsPluto)
+                    return "Pluto with the standard ADI firmware: this PC makes the DVB-S2 signal and streams it to the Pluto (libiio, via " + (Settings.PlutoIp == "usb" ? "USB" : "its IP address") + "). Power 0 dB = full Pluto output. Set Pluto IP to \"usb\" to use the USB backend.";
                 if (IsEsp32)
                     return "ESP32-C3 (SP8ESA ESP32-DATV firmware, flash it with C3CAST): DVB-S2 QPSK on 13 cm. Needs RF filtering and a PA on air. Level and frequency changes restart the transmission briefly.";
                 if (IsMuntjac)
@@ -201,6 +209,11 @@ namespace DatvTx.Hardware
                     throw new InvalidOperationException("No Muntjac found. Plug it in (USB 2E8A:000A) or set Settings → Muntjac COM port" + (Platform.IsWindows ? "." : " (e.g. /dev/ttyACM0)."));
                 args.Append(" --device ").Append(port);
                 args.Append(" --driver-dir ").Append(FfmpegBuilder.Q(CalibrationFolder));
+            }
+            if (IsPluto)
+            {
+                string ip = (Settings.PlutoIp ?? "").Trim();
+                args.Append(" --device ").Append(ip.Equals("usb", StringComparison.OrdinalIgnoreCase) ? "usb" : (ip.Contains(":") ? ip : "ip:" + ip));
             }
             if (IsEsp32)
             {

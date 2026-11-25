@@ -107,3 +107,34 @@ struct HackrfApi
 
     bool Load(const std::vector<std::string> &dirs, std::string &err);
 };
+
+// ---------------------------------------------------------------- libiio (ADI), for a Pluto with standard firmware
+// Prototypes from iio.h (analogdevicesinc/libiio, 0.x API, LGPL). Opaque types only.
+struct iio_context; struct iio_device; struct iio_channel; struct iio_buffer;
+struct iio_scan_context; struct iio_context_info;
+
+struct IioApi
+{
+    iio_context *(SDR_CALL *create_context_from_uri)(const char *uri) = nullptr;
+    void (SDR_CALL *context_destroy)(iio_context *ctx) = nullptr;
+    iio_device *(SDR_CALL *context_find_device)(const iio_context *ctx, const char *name) = nullptr;
+    iio_channel *(SDR_CALL *device_find_channel)(const iio_device *dev, const char *name, bool output) = nullptr;
+    int (SDR_CALL *channel_attr_write_longlong)(const iio_channel *chn, const char *attr, long long val) = nullptr;
+    int (SDR_CALL *channel_attr_write_double)(const iio_channel *chn, const char *attr, double val) = nullptr;
+    void (SDR_CALL *channel_enable)(iio_channel *chn) = nullptr;
+    iio_buffer *(SDR_CALL *device_create_buffer)(const iio_device *dev, size_t samples, bool cyclic) = nullptr;
+    void (SDR_CALL *buffer_destroy)(iio_buffer *buf) = nullptr;
+    std::ptrdiff_t (SDR_CALL *buffer_push)(iio_buffer *buf) = nullptr; // ssize_t
+    void *(SDR_CALL *buffer_start)(const iio_buffer *buf) = nullptr;
+    void *(SDR_CALL *buffer_end)(const iio_buffer *buf) = nullptr;
+    std::ptrdiff_t (SDR_CALL *buffer_step)(const iio_buffer *buf) = nullptr;
+    int (SDR_CALL *device_set_kernel_buffers_count)(const iio_device *dev, unsigned int n) = nullptr;
+    iio_scan_context *(SDR_CALL *create_scan_context)(const char *backend, unsigned int flags) = nullptr;
+    void (SDR_CALL *scan_context_destroy)(iio_scan_context *ctx) = nullptr;
+    std::ptrdiff_t (SDR_CALL *scan_context_get_info_list)(iio_scan_context *ctx, iio_context_info ***info) = nullptr;
+    void (SDR_CALL *context_info_list_free)(iio_context_info **info) = nullptr;
+    const char *(SDR_CALL *context_info_get_uri)(const iio_context_info *info) = nullptr;
+    const char *(SDR_CALL *context_info_get_description)(const iio_context_info *info) = nullptr;
+
+    bool Load(const std::vector<std::string> &dirs, std::string &err);
+};

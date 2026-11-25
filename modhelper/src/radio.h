@@ -16,6 +16,7 @@ struct RadioConfig
     bool calibrate = true;
     std::vector<std::string> driverDirs;
     std::string filePath;     // file radio only
+    std::string uri;          // Pluto: "ip:192.168.2.1" or "usb"
 };
 
 class Radio

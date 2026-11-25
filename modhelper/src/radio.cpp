@@ -322,10 +322,155 @@ private:
     std::atomic<bool> run_{false};
 };
 
+// ======================================================================= Pluto, standard (ADI) firmware via libiio
+// The DVB-S2 signal is made here and streamed as IQ to the AD9363, like the LimeSDR / HackRF.
+// PTT = TX LO power-down (out_altvoltage1_TX_LO_powerdown), power = out_voltage0_hardwaregain (-89.75..0 dB).
+class PlutoRadio : public Radio
+{
+public:
+    const char *Name() override { return "Pluto"; }
+
+    bool Open(const RadioConfig &c, std::string &err) override
+    {
+        cfg_ = c;
+        if (!api_.Load(c.driverDirs, err)) return false;
+        std::string uri = c.uri.empty() ? "ip:192.168.2.1" : c.uri;
+        if (uri == "usb" || uri == "usb:")
+        {
+            uri.clear();
+            iio_scan_context *sc = api_.create_scan_context("usb", 0);
+            iio_context_info **list = nullptr;
+            std::ptrdiff_t n = sc ? api_.scan_context_get_info_list(sc, &list) : -1;
+            for (std::ptrdiff_t i = 0; i < n && uri.empty(); i++)
+            {
+                std::string d = api_.context_info_get_description(list[i]) ? api_.context_info_get_description(list[i]) : "";
+                if (d.find("PlutoSDR") != std::string::npos || d.find("ADALM") != std::string::npos || n == 1)
+                    uri = api_.context_info_get_uri(list[i]);
+            }
+            if (list) api_.context_info_list_free(list);
+            if (sc) api_.scan_context_destroy(sc);
+            if (uri.empty()) { err = "no Pluto found on USB (install ADI's PlutoSDR drivers, or use its IP address)"; return false; }
+        }
+        ctx_ = api_.create_context_from_uri(uri.c_str());
+        if (!ctx_) { err = "no Pluto answered at " + uri + " (check the IP address / USB cable)"; return false; }
+        phy_ = api_.context_find_device(ctx_, "ad9361-phy");
+        tx_ = api_.context_find_device(ctx_, "cf-ad9361-dds-core-lpc");
+        if (!phy_ || !tx_) { err = "this doesn't look like a Pluto (no AD936x devices at " + uri + ")"; return false; }
+        txCh_ = api_.device_find_channel(phy_, "voltage0", true);
+        lo_ = api_.device_find_channel(phy_, "altvoltage1", true);
+        i_ = api_.device_find_channel(tx_, "voltage0", true);
+        q_ = api_.device_find_channel(tx_, "voltage1", true);
+        if (!txCh_ || !lo_ || !i_ || !q_) { err = "Pluto TX channels not found"; return false; }
+        api_.channel_attr_write_longlong(lo_, "powerdown", 1); // off air until PTT
+        int r;
+        if ((r = api_.channel_attr_write_longlong(txCh_, "sampling_frequency", (long long)c.sampleRate)) < 0)
+        { err = "the Pluto refused " + std::to_string((long long)c.sampleRate) + " S/s (" + std::to_string(r) + ")"; return false; }
+        api_.channel_attr_write_longlong(txCh_, "rf_bandwidth", (long long)std::max(200e3, c.bandwidth * 1.2));
+        if ((r = api_.channel_attr_write_longlong(lo_, "frequency", (long long)c.frequency)) < 0)
+        { err = "the Pluto refused " + std::to_string((long long)c.frequency) + " Hz (stock range 325-3800 MHz)"; return false; }
+        ApplyGain();
+        uri_ = uri;
+        return true;
+    }
+
+    bool Start(IqRing *ring, std::string &err) override
+    {
+        ring_ = ring;
+        api_.channel_enable(i_);
+        api_.channel_enable(q_);
+        api_.device_set_kernel_buffers_count(tx_, 4);
+        // ~20 ms per buffer keeps the latency low and the USB/network link busy
+        block_ = (size_t)std::max(16384.0, cfg_.sampleRate * 0.02);
+        buf_ = api_.device_create_buffer(tx_, block_, false);
+        if (!buf_) { err = "could not create the Pluto TX buffer"; return false; }
+        tmp_.resize(block_);
+        run_ = true;
+        th_ = std::thread([this] { Loop(); });
+        ApplyGain();
+        return true;
+    }
+
+    void Loop()
+    {
+        while (run_)
+        {
+            PullSamples(this, ring_, tmp_.data(), block_);
+            char *p = (char *)api_.buffer_start(buf_);
+            char *end = (char *)api_.buffer_end(buf_);
+            std::ptrdiff_t step = api_.buffer_step(buf_);
+            size_t i = 0;
+            for (; p < end && i < block_; p += step, i++)
+            {
+                // 12-bit DAC, MSB-aligned in 16 bits
+                int16_t *s = (int16_t *)p;
+                s[0] = (int16_t)std::lround(tmp_[i].real() * 2047.f) << 4;
+                s[1] = (int16_t)std::lround(tmp_[i].imag() * 2047.f) << 4;
+            }
+            if (api_.buffer_push(buf_) < 0) { failed = true; break; }
+        }
+    }
+
+    void Stop() override
+    {
+        run_ = false;
+        if (th_.joinable()) th_.join();
+        if (ctx_)
+        {
+            if (lo_) api_.channel_attr_write_longlong(lo_, "powerdown", 1);
+            if (txCh_) api_.channel_attr_write_double(txCh_, "hardwaregain", -89.75);
+            if (buf_) api_.buffer_destroy(buf_);
+            api_.context_destroy(ctx_);
+            ctx_ = nullptr; buf_ = nullptr;
+        }
+    }
+
+    bool SetFrequency(double hz, std::string &err) override
+    {
+        cfg_.frequency = hz;
+        if (lo_ && api_.channel_attr_write_longlong(lo_, "frequency", (long long)hz) < 0) { err = "the Pluto refused the frequency"; return false; }
+        return true;
+    }
+
+    bool SetGainDb(double db, std::string &) override { cfg_.gainDb = db; ApplyGain(); return true; }
+
+    void SetMute(bool m) override
+    {
+        muted = m;
+        ApplyGain();
+    }
+
+    std::string Status() override { return failed ? "link=failed" : "uri=" + uri_; }
+
+    std::atomic<bool> failed{false};
+
+private:
+    void ApplyGain()
+    {
+        if (!txCh_) return;
+        double g = std::max(-89.75, std::min(0.0, std::round(cfg_.gainDb * 4) / 4));
+        api_.channel_attr_write_double(txCh_, "hardwaregain", muted ? -89.75 : g);
+        if (lo_) api_.channel_attr_write_longlong(lo_, "powerdown", muted ? 1 : 0);
+    }
+
+    IioApi api_;
+    RadioConfig cfg_;
+    std::string uri_;
+    iio_context *ctx_ = nullptr;
+    iio_device *phy_ = nullptr, *tx_ = nullptr;
+    iio_channel *txCh_ = nullptr, *lo_ = nullptr, *i_ = nullptr, *q_ = nullptr;
+    iio_buffer *buf_ = nullptr;
+    IqRing *ring_ = nullptr;
+    size_t block_ = 0;
+    std::vector<cf> tmp_;
+    std::thread th_;
+    std::atomic<bool> run_{false};
+};
+
 std::unique_ptr<Radio> Radio::Create(const std::string &kind)
 {
     if (kind == "lime") return std::unique_ptr<Radio>(new LimeRadio());
     if (kind == "hackrf") return std::unique_ptr<Radio>(new HackrfRadio());
+    if (kind == "pluto") return std::unique_ptr<Radio>(new PlutoRadio());
     if (kind == "file") return std::unique_ptr<Radio>(new FileRadio(false));
     if (kind == "null") return std::unique_ptr<Radio>(new FileRadio(true));
     return nullptr;
