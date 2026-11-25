@@ -77,13 +77,14 @@ namespace DatvTx.UI
 
         private async Task WithPluto(bool sendCallsign)
         {
-            if (Result.Hardware != HardwareType.PlutoF5oeoMqtt)
+            bool is0303 = Result.Hardware == HardwareType.Pluto0303;
+            if (Result.Hardware != HardwareType.PlutoF5oeoMqtt && !(is0303 && !sendCallsign))
             {
-                _status.Text = "Only needed for a Pluto with F5OEO MQTT firmware.";
+                _status.Text = is0303 ? "On 0303 firmware the callsign is sent at each START." : "Only needed for a Pluto with F5OEO MQTT or 0303 firmware.";
                 return;
             }
             _status.Text = "Connecting to " + Result.PlutoIp + "...";
-            var tx = new PlutoMqttTransmitter(Result);
+            Transmitter tx = is0303 ? (Transmitter)new Pluto0303Transmitter(Result) : new PlutoMqttTransmitter(Result);
             try
             {
                 await tx.ConnectAsync();

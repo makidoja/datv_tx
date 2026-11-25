@@ -11,6 +11,7 @@ namespace DatvTx.Core
     public enum HardwareType
     {
         [Description("Pluto - F5OEO MQTT firmware")] PlutoF5oeoMqtt,
+        [Description("Pluto - F5OEO 0303 firmware (web control)")] Pluto0303,
         [Description("Pluto - older F5OEO firmware (UDP only)")] PlutoLegacyUdp,
         [Description("LimeSDR Mini (built-in modulator)")] LimeSdr,
         [Description("HackRF One (built-in modulator)")] HackRf,

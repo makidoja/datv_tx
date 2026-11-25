@@ -1113,7 +1113,7 @@ namespace DatvTx.UI
             }
             string hwErr = _tx != null ? _tx.Validate(p) : null;
             if (hwErr != null) return hwErr;
-            if (_s.Mode == RunMode.ControlOnly && !(_tx is PlutoMqttTransmitter || _tx is SdrHelperTransmitter)) return "Control-only mode needs a Pluto with F5OEO MQTT firmware, a LimeSDR or a HackRF.";
+            if (_s.Mode == RunMode.ControlOnly && !(_tx is PlutoMqttTransmitter || _tx is Pluto0303Transmitter || _tx is SdrHelperTransmitter)) return "Control-only mode needs a Pluto with F5OEO MQTT or 0303 firmware, a LimeSDR or a HackRF.";
             return null;
         }
 

@@ -80,6 +80,7 @@ namespace DatvTx.Hardware
             switch (s.Hardware)
             {
                 case HardwareType.PlutoF5oeoMqtt: return new PlutoMqttTransmitter(s);
+                case HardwareType.Pluto0303: return new Pluto0303Transmitter(s);
                 case HardwareType.PlutoLegacyUdp: return new PlutoLegacyTransmitter(s);
                 case HardwareType.LimeSdr: return new SdrHelperTransmitter(s, "lime");
                 case HardwareType.HackRf: return new SdrHelperTransmitter(s, "hackrf");
