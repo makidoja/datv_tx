@@ -57,6 +57,21 @@ namespace DatvTx.Core
                 log.AppendLine((present ? "HAVE " : "MISSING ") + c.Value);
             }
 
+            // Low-bit-rate advice
+            var adv = new[] {
+                new { c = "libx265", sz = "1280x720", f = 15.0, v = 375.0, warn = true },
+                new { c = "libx265", sz = "1280x720", f = 10.0, v = 375.0, warn = false },
+                new { c = "libx265", sz = "1280x720", f = 15.0, v = 600.0, warn = false },
+                new { c = "libx264", sz = "1280x720", f = 15.0, v = 600.0, warn = true },
+            };
+            foreach (var t in adv)
+            {
+                string a = Codecs.LowRateAdvice(t.c, t.sz, t.f, t.v);
+                bool ok = (a != null) == t.warn;
+                log.AppendLine((ok ? "PASS" : "FAIL") + " advice " + t.c + " " + t.sz + " " + t.f + "fps " + t.v + "k -> " + (a ?? "none"));
+                if (!ok) failures++;
+            }
+
             // Update check against the real GitHub releases
             try
             {

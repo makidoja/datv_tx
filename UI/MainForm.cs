@@ -437,6 +437,7 @@ namespace DatvTx.UI
             var v = new Label { Dock = DockStyle.Fill, ForeColor = Theme.Text, BackColor = Theme.Surface2, Font = Theme.Semi(12f), TextAlign = ContentAlignment.MiddleCenter };
             box.Controls.Add(v);
             box.Controls.Add(t);
+            v.Tag = t; // title label, for hints
             return v;
         }
 
@@ -959,6 +960,12 @@ namespace DatvTx.UI
         {
             _lblTs.Text = plan.TsBitrateK.ToString("0", Inv) + " kb/s" + (plan.TsFromDevice ? "  ✓" : "");
             _lblVideo.Text = plan.VideoBitrateK.ToString("0", Inv) + " kb/s";
+            var videoTitle = _lblVideo.Tag as Label;
+            if (videoTitle != null)
+            {
+                string advice = Codecs.LowRateAdvice(p.Codec, p.ImageSize, p.Fps, plan.VideoBitrateK);
+                SetLabel(videoTitle, advice == null ? "Video bitrate" : "Video bitrate  •  " + advice, advice == null ? Theme.Muted : Theme.Amber);
+            }
             _lblSummary.Text = string.Format(Inv, "{0} {1}  {2} KS  FEC {3}  {4}{5}\n{6} {10}  {7} @ {8:0.##} fps, audio {9} k",
                 p.DvbS2 ? "DVB-S2" : "DVB-S", p.Constellation.ToUpperInvariant(), p.SymbolRateKs, p.Fec,
                 p.ShortFrames ? "short" : "long", p.Pilots ? ", pilots" : "",

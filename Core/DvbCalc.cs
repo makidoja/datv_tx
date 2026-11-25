@@ -192,6 +192,24 @@ namespace DatvTx.Core
 
         public static readonly string[] Presets = { "ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow" };
 
+        /// <summary>
+        /// Advice when the video bit rate is too low for the picture size and frame rate (bits per pixel
+        /// per frame below about 0.03 for H.265/AV1/VVC, 0.045 for H.264), or null. VMAF tests showed
+        /// a lower frame rate is the most effective fix for blocking on motion.
+        /// </summary>
+        public static string LowRateAdvice(string codec, string imageSize, double fps, double videoK)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(imageSize ?? "", @"^(\d+)x(\d+)$");
+            if (!m.Success || fps <= 0 || videoK <= 0) return null;
+            double w = double.Parse(m.Groups[1].Value), h = double.Parse(m.Groups[2].Value);
+            double bpp = videoK * 1000 / (w * h * fps);
+            bool h264 = codec != null && codec.StartsWith("h264", System.StringComparison.Ordinal) || codec == "libx264";
+            if (bpp >= (h264 ? 0.045 : 0.03)) return null;
+            if (fps > 10) return "low for " + imageSize + " @ " + fps.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " fps: try 10 fps for less blocking on motion";
+            if (w > 960) return "low for " + imageSize + ": try 960x540 or a higher symbol rate / FEC";
+            return "low for this picture: try a higher symbol rate or FEC";
+        }
+
         /// <summary>NVENC presets p1 (fastest) to p7 (best) for the x264-style speed presets.</summary>
         public static string NvencPreset(string preset)
         {

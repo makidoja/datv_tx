@@ -61,6 +61,21 @@ stay under 85% of full scale in every mode. **First RF test: use a dummy load an
 Run modes (in Settings): *Encode* (normal) and *Control only* (DATV-NotSoEasy Light: OBS or another
 encoder streams to the radio itself).
 
+## Picture quality
+
+At DATV bit rates the encoder is starved, so blocking on motion is mostly a bits-per-frame problem.
+VMAF tests on Xiph's 720p test clips at 375 and 600 kb/s (`tools/quality_test.py`, run by the
+*Picture quality test* workflow) found:
+
+- **Frame rate matters most.** 10 fps instead of 15 gives each frame 50% more bits and scored far better,
+  especially on the worst (most blocky) frames. The DVB tab suggests it when the bit rate is low for the
+  picture size and frame rate.
+- **A slower x265 preset** ("fast", "slow") helps, if your CPU keeps up.
+- **H.265 beats H.264** by a clear margin. B-frames on or off made little difference at these rates.
+- Letting the encoder vary its rate under a cap (the default) is slightly better than forcing it constant.
+  The transport stream is padded to the exact channel rate either way. *Settings → Constant video rate*
+  restores the DATV-NotSoEasy behaviour.
+
 ## Building
 Push to `main` and the GitHub Actions workflow builds `DatvTx.exe`, bundles a GPL FFmpeg build
 (BtbN, includes x264, x265, H.266 VVC, AV1 and NVENC) and creates an Inno Setup installer. Both appear as workflow artifacts. Locally: `dotnet build -c Release`

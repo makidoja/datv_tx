@@ -187,7 +187,10 @@ namespace DatvTx.Core
         [Category("7 Transport stream"), DisplayName("Realtime buffer (MB)")] public int RtBufMb { get; set; } = 300;
         [Category("7 Transport stream"), DisplayName("Max delay (ms)")] public int MaxDelayMs { get; set; } = 2000;
         [Category("7 Transport stream"), DisplayName("Max interleave (s)")] public int MaxInterleaveS { get; set; } = 4;
-        [Category("7 Transport stream"), DisplayName("Buffer factor")] public double BufFactor { get; set; } = 1;
+        [Category("7 Transport stream"), DisplayName("Buffer factor"), Description("Encoder buffer in seconds of video. Doubled unless 'Constant video rate' is on.")] public double BufFactor { get; set; } = 1;
+
+        [Category("5 Encoder"), DisplayName("Constant video rate (old)"), Description("Force the encoder to a fixed rate (minrate = maxrate), as DATV-NotSoEasy does. Off = the encoder may spend fewer bits on still scenes and save them for motion; the transport stream stays at a constant rate either way. Off scored slightly better in VMAF tests.")]
+        public bool StrictCbr { get; set; } = false;
         [Browsable(false)] public int ThreadQueueK { get; set; } = 10;
         [Category("7 Transport stream"), DisplayName("UDP FIFO buffer (M)")] public int FifoBufMb { get; set; } = 50;
 
