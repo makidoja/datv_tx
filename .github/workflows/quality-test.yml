@@ -1,0 +1,38 @@
+name: Picture quality test
+
+# Committing a change to this file runs the VMAF comparison in tools/quality_test.py.
+on:
+  push:
+    branches: [ main ]
+    paths: [ '.github/workflows/quality-test.yml', 'tools/quality_test.py' ]
+  workflow_dispatch:
+
+jobs:
+  vmaf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: FFmpeg (BtbN GPL, with libx265 and libvmaf)
+        run: |
+          curl -sL --fail --retry 5 -o ff.tar.xz https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+          mkdir ff && tar -xf ff.tar.xz -C ff --strip-components=1
+          ff/bin/ffmpeg -hide_banner -filters | grep libvmaf
+          ff/bin/ffmpeg -hide_banner -encoders | grep libx265
+      - name: Test footage (Xiph derf 720p, cut to 10 s at 15 fps)
+        run: |
+          mkdir clips
+          for c in park_joy ducks_take_off old_town_cross crowd_run; do
+            if curl -sL --fail --retry 3 -o src.y4m "https://media.xiph.org/video/derf/y4m/${c}_420_720p50.y4m"; then
+              ff/bin/ffmpeg -hide_banner -loglevel error -y -i src.y4m -vf "fps=15,scale=1280x720,format=yuv420p" -t 10 -c:v ffv1 clips/$c.mkv
+              echo "got $c"
+            else echo "missing $c"; fi
+            rm -f src.y4m
+          done
+          # Webcam-style sensor noise on a calm scene
+          if [ -f clips/old_town_cross.mkv ]; then
+            ff/bin/ffmpeg -hide_banner -loglevel error -y -i clips/old_town_cross.mkv -vf "noise=alls=8:allf=t,format=yuv420p" -c:v ffv1 clips/old_town_noisy.mkv
+          fi
+          ls -la clips
+      - name: Compare settings
+        run: python3 tools/quality_test.py ff/bin/ffmpeg "$(ls clips/*.mkv | paste -sd, -)"
