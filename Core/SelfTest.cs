@@ -84,8 +84,10 @@ namespace DatvTx.Core
             {
                 string list = c.Value.EndsWith("_nvenc", StringComparison.Ordinal) ? encCompat : enc;
                 bool present = list.Contains(" " + c.Value + " ");
-                if (!present) failures++;
-                log.AppendLine((present ? "HAVE " : "MISSING ") + c.Value);
+                // Windows bundles its own FFmpeg, which must have every encoder; on Linux the
+                // distribution's FFmpeg decides, so a missing encoder is only reported.
+                if (!present && Platform.IsWindows) failures++;
+                log.AppendLine((present ? "HAVE " : Platform.IsWindows ? "MISSING " : "not in this FFmpeg: ") + c.Value);
             }
 
             // Low-bit-rate advice
