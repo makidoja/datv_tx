@@ -1,4 +1,15 @@
-## DATV TX (M0CKE) v1.0.2
+## DATV TX (M0CKE) v1.1.0
+
+### New in 1.1.0: Linux version (new, not yet tested on air)
+- **DATV TX for Linux PCs (x86-64)**: `DatvTx-M0CKE-1.1.0-x86_64.AppImage` (make it executable and run it), or
+  the `.tar.gz`. It has the same layout and controls as the Windows app, built on the same core code. The .NET
+  runtime is included.
+- It uses the system FFmpeg (`sudo apt install ffmpeg`). Cameras use V4L2 (including the OBS Virtual Camera via
+  v4l2loopback). Audio uses PulseAudio / PipeWire, including "Monitor of …" sources to send what the PC is playing.
+- Radios: Pluto (F5OEO MQTT), HackRF (`sudo apt install hackrf`), LimeSDR Mini (`sudo apt install limesuite limesuite-udev`),
+  and the BATC Muntjac on `/dev/ttyACM*` (join the `dialout` group). See the README's Linux section.
+- The build was checked on Linux: the encoder self-test and screenshots of every view. **It has not yet been tested
+  with real radios on a Linux PC.** Please test into a dummy load first and send the log (OPEN LOG FOLDER) with any problems.
 
 ### Fixed in 1.0.2
 - **Pluto: the full channel bit rate is used after a mode change.** After switching mode (for example DVB-S to
@@ -34,8 +45,9 @@ settings and bitrate maths and no console menus. Thanks to everyone who tested t
 - Fixed: the frequency box frame no longer flashes white while transmitting.
 
 ### Downloads
-- **DatvTx-M0CKE-1.0.2-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
-- **DatvTx-M0CKE-1.0.2-portable.zip**: the same files, to unzip and run.
+- **DatvTx-M0CKE-1.1.0-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
+- **DatvTx-M0CKE-1.1.0-portable.zip**: the same files, to unzip and run.
+- **DatvTx-M0CKE-1.1.0-x86_64.AppImage** / **DatvTx-M0CKE-1.1.0-linux-x64.tar.gz**: the Linux version (see above).
 
 Both include FFmpeg (x264, x265, H.266 VVC, AV1, NVENC, AMD AMF, Intel QSV), the LimeSDR Mini library
 (LimeSuite 23.11) and the HackRF library (libhackrf with libusb). NVIDIA encoding uses a bundled FFmpeg 7.1, which
