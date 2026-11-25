@@ -9,6 +9,7 @@ calculations and Pluto MQTT commands, without the console menus.
 | Transmitter | How it works | Control from the app |
 |---|---|---|
 | ADALM-Pluto, F5OEO MQTT firmware | ffmpeg → UDP to the Pluto, settings over MQTT | Everything: frequency, SR, FEC, power, PTT, roll-off, digital gain |
+| ADALM-Pluto, F5OEO 0303 firmware | ffmpeg → UDP to the Pluto; settings sent to the Pluto's own web pages (no browser needed) | Frequency, power and PTT live; SR, FEC and mode set at START. Set the Pluto once to Main mode DATV, operating mode UDP. *Not yet tested on a real 0303 Pluto* |
 | ADALM-Pluto, older F5OEO firmware | ffmpeg → UDP to the Pluto | Stream only. Set the radio up in its web page |
 | LimeSDR Mini | ffmpeg → UDP → built-in modulator (`datvtx_mod.exe`) → LimeSuite | Frequency, gain and PTT live; SR, FEC and mode set at START |
 | HackRF One | ffmpeg → UDP → built-in modulator (`datvtx_mod.exe`) → libhackrf | Frequency, gain and PTT live; SR, FEC and mode set at START |
