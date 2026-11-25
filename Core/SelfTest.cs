@@ -116,6 +116,7 @@ namespace DatvTx.Core
                 log.AppendLine((none == null ? "PASS" : "FAIL") + " update check from 99.0.0 -> " + (none != null ? none.Tag : "none"));
                 if (none != null) failures++;
             }
+            catch (System.Net.Http.HttpRequestException ex) { log.AppendLine("SKIP update check (GitHub not reachable: " + ex.Message + ")"); }
             catch (Exception ex) { log.AppendLine("FAIL update check: " + ex.Message); failures++; }
 
             log.AppendLine(failures == 0 ? "SELFTEST OK" : "SELFTEST FAILED: " + failures);
