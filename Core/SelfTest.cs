@@ -44,6 +44,27 @@ namespace DatvTx.Core
                     }
                 }
 
+            // Smooth motion: 30 fps source blended down to 10 / 12.5 / 15 fps
+            foreach (double fps in new[] { 10.0, 12.5, 15.0 })
+            {
+                var p = new TxParams { Codec = "libx265", SymbolRateKs = 500, Fec = "2/3", Fps = fps, ImageSize = "1280x720", AudioBitrateK = 16, SmoothMotion = true };
+                var plan = EncodePlan.Build(p, s, DvbCalc.TsBitrateK(p), false);
+                string outFile = Path.Combine(tmp, "smooth-" + fps.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".ts");
+                string input = "-f lavfi -i testsrc2=size=1280x720:rate=30,format=yuvj422p -f lavfi -i sine=frequency=1000:sample_rate=44100";
+                string args = FfmpegBuilder.BuildArgs(p, s, plan, outFile, input, "-t 4 -y");
+                string output, probe;
+                int code = RunFfmpeg(s.FfmpegExe, args, 180000, out output);
+                RunFfmpeg(s.FfmpegExe, "-hide_banner -i \"" + outFile + "\"", 30000, out probe);
+                string want = fps.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " fps";
+                var fm = System.Text.RegularExpressions.Regex.Match(probe, @"([\d.]+) fps");
+                double got;
+                bool fpsOk = fm.Success && double.TryParse(fm.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out got) && Math.Abs(got - fps) < 0.01;
+                bool ok = code == 0 && args.Contains("tmix=frames=") && fpsOk;
+                if (!ok) failures++;
+                log.AppendLine((ok ? "PASS " : "FAIL ") + "smooth motion " + want + "  exit=" + code + "  " + FfmpegBuilder.SmoothMotionFilter(p));
+                if (!ok) { log.AppendLine("  ffmpeg " + args); log.AppendLine(Indent(Tail(output + probe, 25))); }
+            }
+
             // GPU encoders: present in the ffmpeg build each codec will use?
             string enc, encCompat;
             RunFfmpeg(s.FfmpegExe, "-hide_banner -encoders", 30000, out enc);

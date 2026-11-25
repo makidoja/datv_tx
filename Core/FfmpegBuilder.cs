@@ -12,6 +12,20 @@ namespace DatvTx.Core
     {
         private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
+        /// <summary>
+        /// At 15 fps and below, average the source frames that would otherwise be dropped into each kept
+        /// frame (like a camera's shutter blur), so motion looks smooth instead of stepped. The source is
+        /// first brought to 25 or 30 fps, a whole multiple of the output rate, so the blend is even.
+        /// </summary>
+        public static string SmoothMotionFilter(TxParams p)
+        {
+            if (!p.SmoothMotion || p.Fps <= 0 || p.Fps > 15) return null;
+            int k = Math.Max(2, (int)Math.Round(30.0 / p.Fps));
+            double norm = p.Fps * k;
+            string size = (p.ImageSize ?? "").Replace('x', ':');
+            return "scale=" + size + ",fps=" + N(norm) + ",tmix=frames=" + k + ",fps=" + N(p.Fps);
+        }
+
         public static string Q(string s)
         {
             if (string.IsNullOrEmpty(s)) return "\"\"";
@@ -73,6 +87,8 @@ namespace DatvTx.Core
 
             a.Add("-ar " + AudioRate(p, s));
             a.Add("-vcodec " + p.Codec);
+            string smooth = SmoothMotionFilter(p);
+            if (smooth != null) a.Add("-vf " + smooth);
             a.Add("-s " + p.ImageSize);
             // Webcams often deliver MJPEG/YUY2 (4:2:2). GPU encoders reject 4:2:2 and DATV receivers
             // expect 4:2:0, so always convert. VVC picks its own 10-bit format.

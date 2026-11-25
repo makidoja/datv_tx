@@ -343,6 +343,8 @@ namespace DatvTx.Core
         public string Fec { get; set; } = "2/3";
         public bool ShortFrames { get; set; } = false;
         public bool Pilots { get; set; } = false;
+        /// <summary>Blend the frames dropped when going down to a low frame rate, for natural motion blur.</summary>
+        public bool SmoothMotion { get; set; } = true;
         public double RollOff { get; set; } = 0.20;
         public double TxFrequencyMHz { get; set; } = 2403.25;
         public double GainDb { get; set; } = -20;

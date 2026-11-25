@@ -19,12 +19,12 @@ jobs:
           mkdir ff && tar -xf ff.tar.xz -C ff --strip-components=1
           ff/bin/ffmpeg -hide_banner -filters | grep libvmaf
           ff/bin/ffmpeg -hide_banner -encoders | grep libx265
-      - name: Test footage (Xiph derf 720p, cut to 10 s at 15 fps)
+      - name: Test footage (Xiph derf 720p, cut to 10 s at 30 fps)
         run: |
           mkdir clips
           for c in park_joy ducks_take_off old_town_cross; do
             if curl -sL --fail --retry 3 -o src.y4m "https://media.xiph.org/video/derf/y4m/${c}_420_720p50.y4m"; then
-              ff/bin/ffmpeg -hide_banner -loglevel error -y -i src.y4m -vf "fps=15,scale=1280x720,format=yuv420p" -t 10 -c:v ffv1 clips/$c.mkv
+              ff/bin/ffmpeg -hide_banner -loglevel error -y -i src.y4m -vf "fps=30,scale=1280x720,format=yuv420p" -t 10 -c:v ffv1 clips/$c.mkv
               echo "got $c"
             else echo "missing $c"; fi
             rm -f src.y4m

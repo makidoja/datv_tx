@@ -58,6 +58,7 @@ namespace DatvTx.UI
         // modulator
         private ComboBox _cmbStandard, _cmbConst, _cmbSr, _cmbFec, _cmbFrame, _cmbRollOff, _cmbFreq;
         private CheckBox _chkPilots;
+        private CheckBox _chkSmooth;
         private NumericUpDown _numDGain;
         private Label _lblTs, _lblVideo;
 
@@ -408,8 +409,10 @@ namespace DatvTx.UI
             Theme.AddRow(g2, "Image size", _cmbSize);
 
             _cmbFps = Theme.Combo(true);
-            _cmbFps.Items.AddRange(new object[] { "10", "15", "20", "25", "30", "48", "50", "60" });
+            _cmbFps.Items.AddRange(new object[] { "10", "12.5", "15", "20", "25", "30", "48", "50", "60" });
             Theme.AddRow(g2, "Frame rate", _cmbFps);
+            _chkSmooth = Theme.Check("Smooth motion (blend dropped frames)");
+            Theme.AddRow(g2, "", _chkSmooth);
 
             _cmbChannels = Theme.Combo();
             _cmbChannels.Items.AddRange(new object[] { "Mono", "Stereo", "5.1", "7.1" });
@@ -423,9 +426,9 @@ namespace DatvTx.UI
             av.Controls.Add(GroupTitle("VIDEO / AUDIO"));
             page.Controls.Add(av, 1, 1);
 
-            foreach (Control c in new Control[] { _cmbStandard, _cmbConst, _cmbSr, _cmbFec, _cmbFrame, _chkPilots, _cmbCodec, _cmbPreset, _cmbSize, _cmbFps, _cmbChannels, _cmbAbr })
+            foreach (Control c in new Control[] { _cmbStandard, _cmbConst, _cmbSr, _cmbFec, _cmbFrame, _chkPilots, _chkSmooth, _cmbCodec, _cmbPreset, _cmbSize, _cmbFps, _cmbChannels, _cmbAbr })
                 HookRecalc(c);
-            _lockWhileRunning.AddRange(new Control[] { _cmbStandard, _cmbConst, _cmbSr, _cmbFec, _cmbFrame, _chkPilots, _cmbCodec, _cmbPreset, _cmbSize, _cmbFps, _cmbChannels, _cmbAbr });
+            _lockWhileRunning.AddRange(new Control[] { _cmbStandard, _cmbConst, _cmbSr, _cmbFec, _cmbFrame, _chkPilots, _chkSmooth, _cmbCodec, _cmbPreset, _cmbSize, _cmbFps, _cmbChannels, _cmbAbr });
             return page;
         }
 
@@ -874,6 +877,7 @@ namespace DatvTx.UI
                 Fec = (_cmbFec.SelectedItem as string) ?? "1/2",
                 ShortFrames = _cmbFrame.SelectedIndex == 1,
                 Pilots = _chkPilots.Checked,
+                SmoothMotion = _chkSmooth.Checked,
                 RollOff = SelectedRollOff(),
                 TxFrequencyMHz = FirstNumber(_cmbFreq.Text, 2403.25),
                 GainDb = SliderGainDb()
@@ -905,6 +909,7 @@ namespace DatvTx.UI
                 _cmbFec.SelectedIndex = fi >= 0 ? fi : 0;
                 _cmbFrame.SelectedIndex = p.ShortFrames ? 1 : 0;
                 _chkPilots.Checked = p.Pilots;
+                _chkSmooth.Checked = p.SmoothMotion;
                 SelectRollOff(p.RollOff);
                 SelectOrText(_cmbFreq, p.TxFrequencyMHz.ToString("0.00", Inv));
                 _trkPower.Maximum = Math.Max(-196, (int)Math.Round(Math.Min(0, _s.PowerLimitDb) * 4));
