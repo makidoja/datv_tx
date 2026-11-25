@@ -20,6 +20,7 @@ namespace DatvTx.Hardware
         private IMqttClient _client;
         private readonly ConcurrentDictionary<string, string> _latest = new ConcurrentDictionary<string, string>();
         private TaskCompletionSource<string> _bitrateWaiter;
+        private string _bitrateTopic; // "/tx/dvbs2/ts/bitrate" or "/tx/dvbs/ts/bitrate" for the mode being set
         private bool _wasConnected;
 
         public PlutoMqttTransmitter(AppSettings s) : base(s) { }
@@ -102,7 +103,8 @@ namespace DatvTx.Hardware
             string payload = e.ApplicationMessage.ConvertPayloadToString() ?? "";
             _latest[topic] = payload;
 
-            if (topic.EndsWith("/tx/dvbs2/ts/bitrate", StringComparison.Ordinal) || topic.EndsWith("/tx/dvbs/ts/bitrate", StringComparison.Ordinal))
+            var want = _bitrateTopic;
+            if (want != null && topic.EndsWith(want, StringComparison.Ordinal))
             {
                 var w = _bitrateWaiter;
                 if (w != null) w.TrySetResult(payload);
@@ -149,27 +151,44 @@ namespace DatvTx.Hardware
             await Cmd("tx/dvbs2/pilots", p.Pilots ? "1" : "0");
             await Cmd("tx/dvbs2/frame", p.ShortFrames ? "short" : "long");
 
-            // Ignore any retained value from before the change, as the script's "timeout 1" did.
+            // Only accept the figure for the mode being set (the Pluto keeps publishing the old mode's
+            // figure for a while), and only once it agrees with the calculated rate. Wait for updates;
+            // if none agree, use the calculation.
+            _bitrateTopic = p.DvbS2 ? "/tx/dvbs2/ts/bitrate" : "/tx/dvbs/ts/bitrate";
+            double expected = DvbCalc.TsBitrateK(p);
             await Task.Delay(1000);
-            _bitrateWaiter = new TaskCompletionSource<string>();
-            var done = await Task.WhenAny(_bitrateWaiter.Task, Task.Delay(4000));
-            string value = done == _bitrateWaiter.Task ? _bitrateWaiter.Task.Result : null;
-            _bitrateWaiter = null;
-
-            if (value == null)
+            string last = null;
+            var deadline = DateTime.UtcNow.AddSeconds(5);
+            try
             {
-                // fall back to the most recent value we have
-                foreach (var kv in _latest)
-                    if (kv.Key.EndsWith("/ts/bitrate", StringComparison.Ordinal)) value = kv.Value;
+                while (DateTime.UtcNow < deadline)
+                {
+                    _bitrateWaiter = new TaskCompletionSource<string>();
+                    var remaining = deadline - DateTime.UtcNow;
+                    if (remaining <= TimeSpan.Zero) break;
+                    var done = await Task.WhenAny(_bitrateWaiter.Task, Task.Delay(remaining));
+                    if (done != _bitrateWaiter.Task) break;
+                    last = _bitrateWaiter.Task.Result;
+                    double bps;
+                    if (double.TryParse((last ?? "").Trim(), NumberStyles.Float, Inv, out bps) && bps > 0
+                        && Math.Abs(bps / 1000.0 - expected) <= expected * 0.03)
+                    {
+                        RaiseLog("TS bitrate from Pluto: " + F(bps / 1000) + " kbit/s");
+                        return bps / 1000.0;
+                    }
+                }
+            }
+            finally
+            {
+                _bitrateWaiter = null;
+                _bitrateTopic = null;
             }
 
-            double bps;
-            if (value != null && double.TryParse(value.Trim(), NumberStyles.Float, Inv, out bps) && bps > 0)
-            {
-                RaiseLog("TS bitrate from Pluto: " + F(bps / 1000) + " kbit/s");
-                return bps / 1000.0;
-            }
-            RaiseLog("Pluto did not report a TS bitrate; using the calculated value.");
+            if (last != null)
+                RaiseLog("Pluto reported " + last.Trim() + " bit/s, but " + (p.DvbS2 ? "DVB-S2 " : "DVB-S ") + p.Constellation.ToUpperInvariant() + " " + p.Fec
+                    + " at " + p.SymbolRateKs + " KS carries " + F(expected) + " kbit/s; using the calculated value.");
+            else
+                RaiseLog("Pluto did not report a TS bitrate; using the calculated value (" + F(expected) + " kbit/s).");
             return null;
         }
 
