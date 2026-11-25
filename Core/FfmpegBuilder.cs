@@ -71,9 +71,19 @@ namespace DatvTx.Core
                 switch (p.Input)
                 {
                     case InputType.Capture:
-                        a.Add("-f dshow " + rtbuf + " -i " + Q("video=" + p.VideoDevice));
-                        if (!string.IsNullOrWhiteSpace(p.AudioDevice))
-                            a.Add("-f dshow " + rtbuf + " -i " + Q("audio=" + p.AudioDevice));
+                        if (Platform.IsWindows)
+                        {
+                            a.Add("-f dshow " + rtbuf + " -i " + Q("video=" + p.VideoDevice));
+                            if (!string.IsNullOrWhiteSpace(p.AudioDevice))
+                                a.Add("-f dshow " + rtbuf + " -i " + Q("audio=" + p.AudioDevice));
+                        }
+                        else
+                        {
+                            // Linux: V4L2 camera (incl. OBS Virtual Camera via v4l2loopback), PulseAudio/PipeWire audio
+                            a.Add("-f v4l2 -i " + Q(Platform.DeviceId(p.VideoDevice)));
+                            if (!string.IsNullOrWhiteSpace(p.AudioDevice))
+                                a.Add("-f pulse -i " + Q(Platform.DeviceId(p.AudioDevice)));
+                        }
                         break;
                     case InputType.NetworkUdp:
                         a.Add("-i " + Q(s.InputUdp));

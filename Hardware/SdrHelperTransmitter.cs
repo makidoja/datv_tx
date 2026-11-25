@@ -52,6 +52,8 @@ namespace DatvTx.Hardware
         /// <summary>COM port of the first Muntjac (USB VID 2E8A, PID 000A), or null.</summary>
         public static string FindMuntjacPort()
         {
+            if (!Platform.IsWindows) return Platform.LinuxFindUsbSerial("2e8a", "000a");
+#if !LINUX
             try
             {
                 using (var searcher = new System.Management.ManagementObjectSearcher(
@@ -66,6 +68,7 @@ namespace DatvTx.Hardware
                 }
             }
             catch { }
+#endif
             return null;
         }
         public override bool SupportsPtt { get { return true; } }
@@ -78,6 +81,10 @@ namespace DatvTx.Hardware
             {
                 if (IsMuntjac)
                     return "Muntjac by USB: DVB-S2 QPSK/8PSK, 125-1000 KS, 389.5-510 / 2390-2490 MHz. Power 0 dB = 0.20.";
+                if (!Platform.IsWindows)
+                    return IsHackRf
+                        ? "HackRF via the built-in modulator (sudo apt install hackrf). Power 0 dB = TX VGA 47 dB."
+                        : "LimeSDR via the built-in modulator (sudo apt install limesuite). Power 0 dB = full TX gain.";
                 return IsHackRf
                     ? "HackRF via the built-in modulator (WinUSB driver via Zadig). Power 0 dB = TX VGA 47 dB."
                     : "LimeSDR via the built-in modulator (FTDI D3XX driver). Power 0 dB = full TX gain.";
@@ -86,7 +93,7 @@ namespace DatvTx.Hardware
 
         public static string HelperExe
         {
-            get { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "datvtx_mod.exe"); }
+            get { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, Platform.Exe("datvtx_mod")); }
         }
 
         public override string StreamUrl()
@@ -111,7 +118,7 @@ namespace DatvTx.Hardware
         /// <summary>Exact net TS bitrate from the modulator itself (like fetching it from a Pluto).</summary>
         public override async Task<double?> FetchTsBitrateKAsync(TxParams p)
         {
-            if (!File.Exists(HelperExe)) throw new FileNotFoundException("datvtx_mod.exe is missing from the program folder.", HelperExe);
+            if (!File.Exists(HelperExe)) throw new FileNotFoundException(Platform.Exe("datvtx_mod") + " is missing from the program folder.", HelperExe);
             var psi = new ProcessStartInfo(HelperExe, "--bitrate --radio " + _radio + ModArgs(p))
             {
                 UseShellExecute = false,
@@ -145,7 +152,7 @@ namespace DatvTx.Hardware
         public override async Task ConfigureAsync(TxParams p, bool pttOn)
         {
             if (_proc != null) await ShutdownAsync();
-            if (!File.Exists(HelperExe)) throw new FileNotFoundException("datvtx_mod.exe is missing from the program folder.", HelperExe);
+            if (!File.Exists(HelperExe)) throw new FileNotFoundException(Platform.Exe("datvtx_mod") + " is missing from the program folder.", HelperExe);
 
             double gain = Math.Min(p.GainDb, Settings.PowerLimitDb);
             var args = new StringBuilder("--radio " + _radio);
@@ -158,7 +165,7 @@ namespace DatvTx.Hardware
             {
                 string port = string.IsNullOrWhiteSpace(Settings.MuntjacPort) ? FindMuntjacPort() : Settings.MuntjacPort.Trim();
                 if (string.IsNullOrEmpty(port))
-                    throw new InvalidOperationException("No Muntjac found. Plug it in (USB 2E8A:000A) or set Settings → Muntjac COM port.");
+                    throw new InvalidOperationException("No Muntjac found. Plug it in (USB 2E8A:000A) or set Settings → Muntjac COM port" + (Platform.IsWindows ? "." : " (e.g. /dev/ttyACM0)."));
                 args.Append(" --device ").Append(port);
                 args.Append(" --driver-dir ").Append(FfmpegBuilder.Q(CalibrationFolder));
             }

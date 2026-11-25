@@ -1,0 +1,104 @@
+name: Linux build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      release_tag:
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Packages (build tools, FFmpeg for the self-test)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build ffmpeg file desktop-file-utils
+          ffmpeg -hide_banner -version | head -1
+          ffmpeg -hide_banner -devices 2>/dev/null | grep -E "v4l2|pulse|alsa" || true
+
+      - name: Version
+        id: ver
+        run: |
+          v=$(grep -oP '(?<=<InformationalVersion>)[^<]+' DatvTx.csproj)
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Version $v"
+
+      - name: Modulator helper (datvtx_mod)
+        run: |
+          git clone https://github.com/F5OEO/libdvbmod modhelper/external/libdvbmod
+          git -C modhelper/external/libdvbmod checkout eff68b37047196e5bc732b08fa7f73c2bf94107e
+          cmake -S modhelper -B modhelper/build-linux -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build modhelper/build-linux
+          ./modhelper/build-linux/datvtx_mod --bitrate --radio lime --sr 333000 --const qpsk --fec 2/3 | grep BITRATE
+
+      - name: App (self-contained .NET 8, linux-x64)
+        run: |
+          dotnet publish linux/DatvTx.Linux.csproj -c Release -r linux-x64 --self-contained true \
+            -p:Version=$(echo "${{ steps.ver.outputs.version }}" | cut -d- -f1) \
+            -p:InformationalVersion=${{ steps.ver.outputs.version }} \
+            -p:PublishSingleFile=false -o out-linux
+          cp modhelper/build-linux/datvtx_mod out-linux/
+          cp RELEASE_NOTES.md README.md out-linux/ 2>/dev/null || true
+          ls -la out-linux | head -40
+
+      - name: Self-test (encoders via the system FFmpeg)
+        run: |
+          ./out-linux/datvtx --selftest selftest.log; code=$?
+          cat selftest.log
+          exit $code
+
+      - name: Screenshots (headless render)
+        run: |
+          ./out-linux/datvtx --screenshot shots
+          ls -la shots
+
+      - name: AppImage and tarball
+        run: |
+          v=${{ steps.ver.outputs.version }}
+          mkdir -p AppDir/usr/lib/datvtx AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+          cp -a out-linux/. AppDir/usr/lib/datvtx/
+          cp linux/packaging/AppRun AppDir/AppRun
+          cp linux/packaging/datvtx.desktop AppDir/datvtx.desktop
+          cp linux/packaging/datvtx.desktop AppDir/usr/share/applications/
+          cp Assets/DatvTx.png AppDir/datvtx.png
+          cp Assets/DatvTx.png AppDir/usr/share/icons/hicolor/256x256/apps/datvtx.png
+          desktop-file-validate AppDir/datvtx.desktop
+          curl -sL --fail --retry 5 -o appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          ARCH=x86_64 ./appimagetool --appimage-extract-and-run AppDir "DatvTx-M0CKE-$v-x86_64.AppImage"
+          tar -czf "DatvTx-M0CKE-$v-linux-x64.tar.gz" -C out-linux --transform "s,^\.,datvtx-$v," .
+          ls -la *.AppImage *.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: datvtx-linux
+          path: |
+            *.AppImage
+            *.tar.gz
+            selftest.log
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: shots/*.png
+
+      - name: Attach to release
+        if: ${{ inputs.release_tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ inputs.release_tag }}" *.AppImage *.tar.gz --clobber --repo "$GITHUB_REPOSITORY"

@@ -218,7 +218,7 @@ namespace DatvTx.Core
         }
 
         [Browsable(false), JsonIgnore]
-        public string FfmpegExe { get { return Path.Combine(EffectiveFfmpegFolder, "ffmpeg.exe"); } }
+        public string FfmpegExe { get { return Path.Combine(EffectiveFfmpegFolder, Platform.Exe("ffmpeg")); } }
 
         /// <summary>
         /// NVIDIA codecs use the bundled FFmpeg 7.1 build (NVENC SDK 11.1, driver 470+) unless the user
@@ -228,14 +228,14 @@ namespace DatvTx.Core
         {
             if (string.IsNullOrWhiteSpace(FfmpegFolder) && codec != null && codec.EndsWith("_nvenc", StringComparison.Ordinal))
             {
-                string compat = Path.Combine(EffectiveFfmpegFolder, "nvenc-compat", "ffmpeg.exe");
+                string compat = Path.Combine(EffectiveFfmpegFolder, "nvenc-compat", Platform.Exe("ffmpeg"));
                 if (File.Exists(compat)) return compat;
             }
             return FfmpegExe;
         }
 
         [Browsable(false), JsonIgnore]
-        public string FfplayExe { get { return Path.Combine(EffectiveFfmpegFolder, "ffplay.exe"); } }
+        public string FfplayExe { get { return Path.Combine(EffectiveFfmpegFolder, Platform.Exe("ffplay")); } }
 
         [Browsable(false), JsonIgnore]
         public string EffectiveFfmpegFolder
@@ -243,7 +243,11 @@ namespace DatvTx.Core
             get
             {
                 if (!string.IsNullOrWhiteSpace(FfmpegFolder)) return FfmpegFolder;
-                return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg");
+                string bundled = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg");
+                if (Platform.IsWindows || File.Exists(Path.Combine(bundled, "ffmpeg"))) return bundled;
+                // Linux without a bundled build: the system FFmpeg (sudo apt install ffmpeg)
+                string sys = Platform.FindOnPath("ffmpeg");
+                return sys != null ? Path.GetDirectoryName(sys) : bundled;
             }
         }
 

@@ -21,6 +21,13 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <cerrno>
+#include <fcntl.h>
+#include <poll.h>
+#include <sys/ioctl.h>
+#include <termios.h>
+#include <unistd.h>
 #endif
 
 namespace
@@ -114,7 +121,33 @@ bool MuntjacLink::Open(const std::string &port, std::string &err)
     handle_ = h;
     return true;
 #else
-    file_ = fopen(port.c_str(), "wb"); // tests on Linux: write the byte stream to a file
+    if (port.compare(0, 5, "/dev/") == 0)
+    {
+        int fd = open(port.c_str(), O_RDWR | O_NOCTTY | O_CLOEXEC);
+        if (fd < 0)
+        {
+            err = "cannot open " + port + ": " + strerror(errno);
+            if (errno == EACCES) err += " (add yourself to the 'dialout' group: sudo usermod -aG dialout $USER, then log out and in)";
+            return false;
+        }
+        termios t;
+        memset(&t, 0, sizeof(t));
+        tcgetattr(fd, &t);
+        cfmakeraw(&t);
+        cfsetispeed(&t, B115200); // ignored by USB CDC
+        cfsetospeed(&t, B115200);
+        t.c_cflag |= CLOCAL | CREAD;
+        t.c_cflag &= ~CRTSCTS;
+        t.c_cc[VMIN] = 0;  // reads return at once with whatever is waiting
+        t.c_cc[VTIME] = 0;
+        tcsetattr(fd, TCSANOW, &t);
+        int bits = TIOCM_DTR | TIOCM_RTS;
+        ioctl(fd, TIOCMBIS, &bits);
+        tcflush(fd, TCIOFLUSH);
+        fd_ = fd;
+        return true;
+    }
+    file_ = fopen(port.c_str(), "wb"); // tests: write the byte stream to a file
     if (!file_) { err = "cannot open " + port; return false; }
     return true;
 #endif
@@ -134,6 +167,27 @@ bool MuntjacLink::Write(const std::vector<uint8_t> &b)
     }
     return true;
 #else
+    if (fd_ >= 0)
+    {
+        size_t off = 0;
+        while (off < b.size())
+        {
+            ssize_t n = write(fd_, b.data() + off, b.size() - off);
+            if (n < 0)
+            {
+                if (errno == EINTR) continue;
+                if (errno == EAGAIN)
+                {
+                    pollfd p{fd_, POLLOUT, 0};
+                    if (poll(&p, 1, 2000) <= 0) return false; // the Muntjac stopped taking data
+                    continue;
+                }
+                return false;
+            }
+            off += (size_t)n;
+        }
+        return true;
+    }
     return fwrite(b.data(), 1, b.size(), file_) == b.size();
 #endif
 }
@@ -144,6 +198,13 @@ std::string MuntjacLink::ReadAvailable()
     char buf[4096];
     DWORD n = 0;
     if (ReadFile((HANDLE)handle_, buf, sizeof(buf), &n, nullptr) && n > 0) return std::string(buf, n);
+#else
+    if (fd_ >= 0)
+    {
+        char buf[4096];
+        ssize_t n = read(fd_, buf, sizeof(buf));
+        if (n > 0) return std::string(buf, (size_t)n);
+    }
 #endif
     return "";
 }
@@ -154,6 +215,8 @@ void MuntjacLink::Close()
     if (handle_) CloseHandle((HANDLE)handle_);
     handle_ = nullptr;
 #else
+    if (fd_ >= 0) { tcdrain(fd_); close(fd_); }
+    fd_ = -1;
     if (file_) fclose(file_);
     file_ = nullptr;
 #endif
@@ -276,9 +339,12 @@ bool Muntjac::Open(const std::string &port, const std::vector<std::string> &calD
             }
         }
     }
-#ifdef _WIN32
-    if (serial_.empty()) { err = "no reply from a Muntjac on " + port; link_.Close(); return false; }
+    // A real port must answer the status request; file test mode has nobody to answer.
+    bool realPort = true;
+#ifndef _WIN32
+    realPort = port.compare(0, 5, "/dev/") == 0;
 #endif
+    if (realPort && serial_.empty()) { err = "no reply from a Muntjac on " + port; link_.Close(); return false; }
     LoadCalibration(calDirs);
     return true;
 }

@@ -165,6 +165,13 @@ namespace DatvTx.Core
 
     public static class Codecs
     {
+        /// <summary>Codecs offered on this platform: AMD AMF and Intel QSV encoders are Windows-only in FFmpeg builds.</summary>
+        public static CodecChoice[] ForPlatform()
+        {
+            if (Platform.IsWindows) return All;
+            return System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Where(All, c => !c.Value.EndsWith("_amf", System.StringComparison.Ordinal) && !c.Value.EndsWith("_qsv", System.StringComparison.Ordinal)));
+        }
+
         public static bool IsAv1(string c) { return c == "av1_nvenc" || c == "av1_amf" || c == "libaom-av1" || c == "libsvtav1"; }
 
         public class CodecChoice

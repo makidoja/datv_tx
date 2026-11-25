@@ -23,9 +23,18 @@ namespace DatvTx.Core
 
             string[] cpu = { "libx264", "libx265", "libvvenc", "libsvtav1", "libaom-av1" };
             int[] rates = { 333, 125, 1000 };
+            // Linux uses the distribution's FFmpeg, which may lack some encoders (e.g. H.266): skip those there.
+            string available;
+            RunFfmpeg(s.FfmpegExe, "-hide_banner -encoders", 30000, out available);
+            log.AppendLine("FFmpeg: " + s.FfmpegExe);
             foreach (string codec in cpu)
                 foreach (int sr in rates)
                 {
+                    if (!Platform.IsWindows && (available ?? "").IndexOf(" " + codec + " ", StringComparison.Ordinal) < 0)
+                    {
+                        if (sr == rates[0]) log.AppendLine("SKIP " + codec + " (not in this FFmpeg build)");
+                        continue;
+                    }
                     var p = new TxParams { Codec = codec, SymbolRateKs = sr, Fec = "2/3", Fps = 25, ImageSize = sr < 250 ? "640x360" : "1280x720", AudioBitrateK = 16 };
                     var plan = EncodePlan.Build(p, s, DvbCalc.TsBitrateK(p), false);
                     string outFile = Path.Combine(tmp, codec + "-" + sr + (Codecs.IsAv1(codec) ? ".nut" : ".ts"));

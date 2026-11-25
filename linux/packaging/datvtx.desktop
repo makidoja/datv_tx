@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=DATV TX (M0CKE)
+Comment=DATV transmitter for QO-100 and terrestrial (Pluto, LimeSDR, HackRF, Muntjac)
+Exec=datvtx
+Icon=datvtx
+Terminal=false
+Categories=HamRadio;AudioVideo;Network;

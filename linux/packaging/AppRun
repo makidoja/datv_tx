@@ -1,0 +1,4 @@
+#!/bin/sh
+# DATV TX (M0CKE) AppImage entry point
+HERE="$(dirname "$(readlink -f "$0")")"
+exec "$HERE/usr/lib/datvtx/datvtx" "$@"

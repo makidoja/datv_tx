@@ -30,7 +30,8 @@ public:
 
 private:
     void *handle_ = nullptr;
-    FILE *file_ = nullptr;
+    FILE *file_ = nullptr; // test mode: byte stream to a file
+    int fd_ = -1;          // Linux serial port (/dev/ttyACM*)
 };
 
 class Muntjac

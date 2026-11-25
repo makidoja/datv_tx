@@ -34,4 +34,10 @@
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Linux version (Avalonia) and tools are built separately -->
+    <Compile Remove="linux\**" />
+    <Compile Remove="tools\**" />
+    <None Remove="linux\**" />
+  </ItemGroup>
 </Project>

@@ -153,6 +153,8 @@ namespace DatvTx.Core
         // ------------------------------------------------------------------
         public static Task<Tuple<List<string>, List<string>>> ListDirectShowDevicesAsync(string ffmpegExe)
         {
+            if (!Platform.IsWindows)
+                return Task.Run(() => Tuple.Create(Platform.LinuxVideoDevices(), Platform.LinuxAudioDevices()));
             return Task.Run(() =>
             {
                 var video = new List<string>();
