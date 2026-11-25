@@ -1,4 +1,20 @@
-## DATV TX (M0CKE) v1.0.1
+## DATV TX (M0CKE) v1.0.2
+
+### Fixed in 1.0.2
+- **Pluto: the full channel bit rate is used after a mode change.** After switching mode (for example DVB-S to
+  DVB-S2), the app could take the Pluto's figure for the old mode and encode for too little. For example,
+  614 kb/s instead of about 744 kb/s for DVB-S2 QPSK 3/4 at 500 KS. It now only accepts the new mode's figure, and
+  and checks it against the calculation (which matches the Pluto to 0.04%).
+
+### Better pictures in 1.0.2
+These changes are based on VMAF picture-quality tests with Xiph's 720p test footage (see README).
+- **Smooth motion** (DVB tab, on by default): at 10 fps and below, the dropped frames are blended into the kept
+  ones, like a camera's motion blur. Pans look smoother, and it encodes better.
+- **12.5 fps** option for 25 / 50 fps sources. Pick a frame rate that divides your source: OBS at 30 fps → 10 or 15.
+- The encoder no longer forces a constant rate; it is capped at the video rate and spends fewer bits on still scenes.
+  The transport stream is still padded to exactly the channel rate. Settings → Constant video rate (old) restores
+  the old behaviour.
+- The DVB tab's "Video bitrate" title shows advice when the bit rate is low for the picture size and frame rate.
 
 ### Fixed in 1.0.1
 - Boxes you can type in (frequency, symbol rate, image size, frame rate, video and audio device) no longer
@@ -18,8 +34,8 @@ settings and bitrate maths and no console menus. Thanks to everyone who tested t
 - Fixed: the frequency box frame no longer flashes white while transmitting.
 
 ### Downloads
-- **DatvTx-M0CKE-1.0.1-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
-- **DatvTx-M0CKE-1.0.1-portable.zip**: the same files, to unzip and run.
+- **DatvTx-M0CKE-1.0.2-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
+- **DatvTx-M0CKE-1.0.2-portable.zip**: the same files, to unzip and run.
 
 Both include FFmpeg (x264, x265, H.266 VVC, AV1, NVENC, AMD AMF, Intel QSV), the LimeSDR Mini library
 (LimeSuite 23.11) and the HackRF library (libhackrf with libusb). NVIDIA encoding uses a bundled FFmpeg 7.1, which
