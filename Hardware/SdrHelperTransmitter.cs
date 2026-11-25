@@ -25,13 +25,30 @@ namespace DatvTx.Hardware
 
         private bool IsHackRf { get { return _radio == "hackrf"; } }
         private bool IsMuntjac { get { return _radio == "muntjac"; } }
+        private bool IsEsp32 { get { return _radio == "esp32"; } }
 
-        public override string DisplayName { get { return IsMuntjac ? "BATC Muntjac" : IsHackRf ? "HackRF One" : "LimeSDR Mini"; } }
+        public override string DisplayName { get { return IsEsp32 ? "ESP32-C3 DATV" : IsMuntjac ? "BATC Muntjac" : IsHackRf ? "HackRF One" : "LimeSDR Mini"; } }
 
-        public override double[] RollOffs { get { return IsMuntjac ? new[] { 0.20, 0.15, 0.25, 0.35 } : new[] { 0.20, 0.25, 0.35 }; } }
+        public override double[] RollOffs
+        {
+            get
+            {
+                if (IsEsp32) return new[] { 0.35 }; // the firmware's RRC filter is fixed at 0.35
+                return IsMuntjac ? new[] { 0.20, 0.15, 0.25, 0.35 } : new[] { 0.20, 0.25, 0.35 };
+            }
+        }
 
         public override string Validate(TxParams p)
         {
+            if (IsEsp32)
+            {
+                if (!p.DvbS2 || p.Constellation != "qpsk") return "The ESP32-C3 DATV support is DVB-S2 QPSK only.";
+                if (p.SymbolRateKs < 25 || p.SymbolRateKs > 1000) return "ESP32-C3 DATV symbol rates: 25 to 1000 KS.";
+                double half = p.SymbolRateKs * 1.35 / 2000.0;
+                if (p.TxFrequencyMHz - half < 2300 || p.TxFrequencyMHz + half > 2450) return "The ESP32-DATV firmware transmits only in 2300-2450 MHz.";
+                if (Settings.Esp32MaxLevel < 1 || Settings.Esp32MaxLevel > 480) return "Settings → ESP32 level at 0 dB must be 1 to 480.";
+                return null;
+            }
             if (!IsMuntjac) return null;
             if (!p.DvbS2) return "The Muntjac transmits DVB-S2 only.";
             if (p.Constellation != "qpsk" && p.Constellation != "8psk") return "The Muntjac supports QPSK and 8PSK only.";
@@ -50,14 +67,19 @@ namespace DatvTx.Hardware
         }
 
         /// <summary>COM port of the first Muntjac (USB VID 2E8A, PID 000A), or null.</summary>
-        public static string FindMuntjacPort()
+        public static string FindMuntjacPort() { return FindUsbSerial("2E8A", "000A"); }
+
+        /// <summary>Serial port of the first ESP32-C3 on its native USB (Espressif USB JTAG/serial, 303A:1001), or null.</summary>
+        public static string FindEsp32Port() { return FindUsbSerial("303A", "1001"); }
+
+        private static string FindUsbSerial(string vid, string pid)
         {
-            if (!Platform.IsWindows) return Platform.LinuxFindUsbSerial("2e8a", "000a");
+            if (!Platform.IsWindows) return Platform.LinuxFindUsbSerial(vid, pid);
 #if !LINUX
             try
             {
                 using (var searcher = new System.Management.ManagementObjectSearcher(
-                    "SELECT Name, PNPDeviceID FROM Win32_PnPEntity WHERE PNPDeviceID LIKE '%VID_2E8A&PID_000A%'"))
+                    "SELECT Name, PNPDeviceID FROM Win32_PnPEntity WHERE PNPDeviceID LIKE '%VID_" + vid + "&PID_" + pid + "%'"))
                 {
                     foreach (System.Management.ManagementObject o in searcher.Get())
                     {
@@ -79,6 +101,8 @@ namespace DatvTx.Hardware
         {
             get
             {
+                if (IsEsp32)
+                    return "ESP32-C3 (SP8ESA ESP32-DATV firmware, flash it with C3CAST): DVB-S2 QPSK on 13 cm. Needs RF filtering and a PA on air. Level and frequency changes restart the transmission briefly.";
                 if (IsMuntjac)
                     return "Muntjac by USB: DVB-S2 QPSK/8PSK, 125-1000 KS, 389.5-510 / 2390-2490 MHz. Power 0 dB = 0.20.";
                 if (!Platform.IsWindows)
@@ -89,6 +113,15 @@ namespace DatvTx.Hardware
                     ? "HackRF via the built-in modulator (WinUSB driver via Zadig). Power 0 dB = TX VGA 47 dB."
                     : "LimeSDR via the built-in modulator (FTDI D3XX driver). Power 0 dB = full TX gain.";
             }
+        }
+
+        private static double[] Pair(string text, double a, double b)
+        {
+            var parts = (text ?? "").Replace(',', ' ').Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            double x, y;
+            if (parts.Length >= 1 && double.TryParse(parts[0], System.Globalization.NumberStyles.Float, Inv, out x)) a = x;
+            if (parts.Length >= 2 && double.TryParse(parts[1], System.Globalization.NumberStyles.Float, Inv, out y)) b = y;
+            return new[] { a, b };
         }
 
         public static string HelperExe
@@ -168,6 +201,20 @@ namespace DatvTx.Hardware
                     throw new InvalidOperationException("No Muntjac found. Plug it in (USB 2E8A:000A) or set Settings → Muntjac COM port" + (Platform.IsWindows ? "." : " (e.g. /dev/ttyACM0)."));
                 args.Append(" --device ").Append(port);
                 args.Append(" --driver-dir ").Append(FfmpegBuilder.Q(CalibrationFolder));
+            }
+            if (IsEsp32)
+            {
+                string port = string.IsNullOrWhiteSpace(Settings.Esp32Port) ? FindEsp32Port() : Settings.Esp32Port.Trim();
+                if (string.IsNullOrEmpty(port))
+                    throw new InvalidOperationException("No ESP32-C3 found. Plug it in by its USB-C port (Espressif 303A:1001) or set Settings → ESP32 COM port.");
+                args.Append(" --device ").Append(port);
+                args.Append(" --esp-level ").Append(Settings.Esp32MaxLevel.ToString(Inv));
+                args.Append(" --esp-min-level ").Append(Math.Max(1, Settings.Esp32MinLevel).ToString(Inv));
+                double[] dc = Pair(Settings.Esp32DcTrim, 0, 0), iq = Pair(Settings.Esp32IqTrim, 1.0, 0);
+                if (Math.Abs(dc[0]) > 512 || Math.Abs(dc[1]) > 512) throw new InvalidOperationException("ESP32 DC trim must be -512 to 512.");
+                if (iq[0] < 0.7 || iq[0] > 1.3 || Math.Abs(iq[1]) > 40) throw new InvalidOperationException("ESP32 IQ gain must be 0.7-1.3 and phase -40 to 40 degrees.");
+                args.Append(" --esp-dc ").Append(Math.Round(dc[0] * 16).ToString("0", Inv)).Append(' ').Append(Math.Round(dc[1] * 16).ToString("0", Inv));
+                args.Append(" --esp-iq ").Append(Math.Round(iq[0] * 1e4).ToString("0", Inv)).Append(' ').Append(Math.Round(iq[1] * 1e3).ToString("0", Inv));
             }
             if (IsHackRf && Settings.HackRfAmp) args.Append(" --amp");
             if (!IsHackRf && !Settings.LimeCalibrate) args.Append(" --no-cal");

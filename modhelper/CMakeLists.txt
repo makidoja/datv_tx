@@ -24,7 +24,7 @@ else()
     target_compile_options(dvbmod PRIVATE -w -O2 -fpermissive)
 endif()
 
-add_executable(datvtx_mod src/main.cpp src/core.cpp src/radio.cpp src/sdr_api.cpp src/muntjac.cpp)
+add_executable(datvtx_mod src/main.cpp src/core.cpp src/radio.cpp src/sdr_api.cpp src/muntjac.cpp src/esp32datv.cpp)
 target_link_libraries(datvtx_mod PRIVATE dvbmod)
 if(WIN32)
     target_link_libraries(datvtx_mod PRIVATE ws2_32)

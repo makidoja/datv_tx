@@ -14,6 +14,7 @@ calculations and Pluto MQTT commands, without the console menus.
 | LimeSDR Mini | ffmpeg → UDP → built-in modulator (`datvtx_mod.exe`) → LimeSuite | Frequency, gain and PTT live; SR, FEC and mode set at START |
 | HackRF One | ffmpeg → UDP → built-in modulator (`datvtx_mod.exe`) → libhackrf | Frequency, gain and PTT live; SR, FEC and mode set at START |
 | BATC Muntjac (70 cm / 13 cm) | ffmpeg → UDP → `datvtx_mod.exe` makes DVB-S2 frames → USB serial to the Muntjac | Frequency (same band), power and PTT live; SR, FEC and mode set at START |
+| ESP32-C3 (SP8ESA ESP32-DATV firmware) | ffmpeg → UDP → `datvtx_mod` makes DVB-S2 QPSK frames → USB serial to the ESP32-C3, whose Wi-Fi radio transmits on 13 cm | PTT; level and frequency changes restart the transmission briefly. DVB-S2 QPSK, 25-1000 KS, 2300-2450 MHz. *Not yet tested on a real board* |
 | Local test | ffmpeg → local multicast | Use MONITOR STREAM to check the picture |
 
 ### LimeSDR Mini and HackRF: the built-in modulator
@@ -129,6 +130,16 @@ at 1000 KS), 389.5–510, 770–1030 and 2390–2490 MHz. The power slider's 0 d
 DATV maximum G4EWJ recommends. For carrier/LO calibration, copy your `<serial>.mjo` file from the
 Portsdown into `%AppData%\DatvTx`; otherwise it uses the internal default. **Tested on air on 70 cm and QO-100 (13 cm), 125 and 500 KS.**
 
+### ESP32-C3 (SP8ESA ESP32-DATV)
+
+A Seeed XIAO ESP32-C3 (about 5 EUR) running Kacper SP8ESA's [ESP32-DATV](https://github.com/SP8ESA/ESP32-DATV)
+firmware turns the chip's own Wi-Fi radio into a DVB-S2 transmitter on 13 cm. Flash the board with HB9IIU's
+[C3CAST](https://github.com/HB9IIU/C3CAST) (its Flash button), then choose *ESP32-C3 DATV* here. This app sends the
+DVB-S2 QPSK symbols over the board's USB-C cable; it does not include or install the firmware (PolyForm Noncommercial
+licence). The board is found automatically (Espressif USB 303A:1001). PTT output: pin D10. The power slider's 0 dB is
+*Settings → ESP32 level at 0 dB* (default 100; not calibrated power). As both authors stress: use RF output filtering
+and check the spectrum before going on air, and start on a dummy load. The RRC roll-off is fixed at 0.35.
+
 ## Credits and licences
 - DATV-NotSoEasy by DL5OCD: the original logic and parameters.
 - Pluto DATV firmware and MQTT interface by F5OEO.
@@ -136,4 +147,5 @@ Portsdown into `%AppData%\DatvTx`; otherwise it uses the internal default. **Tes
   github.com/F5OEO/libdvbmod. That repository has no licence file, so please confirm with F5OEO before you
   distribute builds publicly.
 - FFmpeg (GPL build) is bundled separately under its own licence.
+- ESP32-C3 transmitter firmware: Kacper SP8ESA (ESP32-DATV), packaged for the XIAO by HB9IIU (C3CAST). Not included.
 - Muntjac USB protocol from G4EWJ's code in the BATC Portsdown 4 (`src/muntjac`, GPL-3.0).

@@ -10,6 +10,7 @@
 #include "core.h"
 #include "libdvbmod.h"
 #include "muntjac.h"
+#include "esp32datv.h"
 #include "radio.h"
 #include <algorithm>
 #include <atomic>
@@ -103,6 +104,67 @@ static int RunMuntjac(const MuntjacConfig &mc, const std::string &device, double
     std::_Exit(0);
 }
 
+static int RunEsp32(const Esp32Config &ec, const std::string &device, double gain, bool ptt, bool bitrateOnly,
+                    const std::string &bindIp, int port)
+{
+    Esp32Datv esp;
+    esp.SetGain(gain);
+    std::string err;
+    int bitrate = esp.Init(ec, err);
+    if (bitrate <= 0) { Out("ERROR " + err); return 2; }
+    if (bitrateOnly) { Out("BITRATE " + std::to_string(bitrate)); return 0; }
+    if (device.empty()) { Out("ERROR no ESP32 port given (--device COMx or /dev/ttyACMx)"); return 2; }
+    if (!esp.Open(device, err)) { Out("ERROR " + err); return 1; }
+
+    TsQueue tsq(20000);
+    UdpTsReceiver udp;
+    if (!udp.Start(bindIp, port, &tsq, err)) { Out("ERROR " + err); esp.Stop(); return 1; }
+    esp.SetPtt(ptt);
+    esp.Start(&tsq);
+    std::ostringstream ready;
+    ready << "READY radio=ESP32-DATV firmware=" << esp.Version() << " bitrate=" << bitrate << " baud=" << (long long)std::lround(esp.BaudUsed())
+          << " sps=" << esp.SpsUsed() << " level=" << esp.Amp(gain) << " udp=" << bindIp << ":" << port;
+    Out(ready.str());
+
+    std::atomic<bool> quit{false};
+    std::thread control([&] {
+        std::string line;
+        while (!quit && std::getline(std::cin, line))
+        {
+            std::istringstream ss(line);
+            std::string cmd;
+            ss >> cmd;
+            std::string e;
+            if (cmd == "ptt") { int v = 0; ss >> v; esp.SetPtt(v != 0); Out(std::string("PTT ") + (v ? "on" : "off")); }
+            else if (cmd == "gain") { double g = gain; ss >> g; esp.SetGain(g); Out("GAIN " + std::to_string(g) + " level=" + std::to_string(esp.Amp(g)) + (esp.OnAir() ? " (restarting the transmission)" : "")); }
+            else if (cmd == "freq") { double f = 0; ss >> f; if (esp.SetFrequency(f, e)) Out("FREQ " + std::to_string((long long)f) + (esp.OnAir() ? " (restarting the transmission)" : "")); else Out("ERROR " + e); }
+            else if (cmd == "quit") break;
+        }
+        quit = true;
+    });
+    control.detach();
+
+    auto start = std::chrono::steady_clock::now();
+    while (!quit)
+    {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        for (auto &m : esp.TakeMessages()) Out("MJ ESP32: " + m);
+        if (!esp.error.empty()) { Out("ERROR ESP32 " + esp.error); break; }
+        if (esp.writeFailed) { Out("ERROR the ESP32 stopped accepting data (unplugged?)"); break; }
+        double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+        std::ostringstream ss;
+        ss << "STAT ts_kbps=" << (long long)(udp.bytes * 8 / 1000 / std::max(1.0, elapsed)) << " queue=" << tsq.Count()
+           << " frames=" << esp.framesMade << " nulls=" << esp.nullsInserted << " packets=" << esp.packetsSent
+           << " dropped=" << tsq.dropped << " sync_err=" << udp.syncErrors << " board_fill=" << esp.boardFill
+           << " underruns=" << esp.boardUnderruns << " level=" << esp.Amp(esp.GainDb()) << (esp.OnAir() ? " ptt=on" : " ptt=off");
+        Out(ss.str());
+    }
+    esp.Stop();
+    udp.Stop();
+    Out("STOPPED");
+    std::_Exit(0);
+}
+
 static int AutoUpsample(const std::string &radio, int sr)
 {
     double minRate = radio == "hackrf" ? 2.0e6 : 1.0e6; // HackRF needs >= 2 MS/s
@@ -121,6 +183,7 @@ int main(int argc, char **argv)
     int sr = 333000, upsample = 0, port = 10000, seconds = 0;
     bool pilots = false, shortFrames = false, amp = false, ptt = false, bitrateOnly = false, cal = true;
     std::vector<std::string> driverDirs;
+    Esp32Config esp;
 
     for (int i = 1; i < argc; i++)
     {
@@ -150,7 +213,23 @@ int main(int argc, char **argv)
         else if (a == "--seconds") seconds = atoi(next().c_str());
         else if (a == "--bitrate") bitrateOnly = true;
         else if (a == "--device") device = next();
+        else if (a == "--esp-level") esp.maxAmp = atoi(next().c_str());
+        else if (a == "--esp-min-level") esp.minAmp = atoi(next().c_str());
+        else if (a == "--esp-dc") { esp.dcI = atoi(next().c_str()); esp.dcQ = atoi(next().c_str()); }
+        else if (a == "--esp-iq") { esp.iqGain = atoi(next().c_str()); esp.iqPhase = atoi(next().c_str()); }
         else { Usage(); return 2; }
+    }
+
+    if (radioKind == "esp32")
+    {
+        if (standard == "dvbs") { Out("ERROR the ESP32-DATV support here is DVB-S2 only"); return 2; }
+        if (ParseConstellation(constel) != M_QPSK) { Out("ERROR the ESP32-DATV support here is QPSK only"); return 2; }
+        esp.frequency = freq;
+        esp.symbolRate = sr;
+        esp.fec = fec;
+        esp.pilots = pilots;
+        esp.shortFrames = shortFrames;
+        return RunEsp32(esp, device, gain, ptt, bitrateOnly, bindIp, port);
     }
 
     if (radioKind == "muntjac")

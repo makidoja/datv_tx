@@ -16,6 +16,7 @@ namespace DatvTx.Core
         [Description("LimeSDR Mini (built-in modulator)")] LimeSdr,
         [Description("HackRF One (built-in modulator)")] HackRf,
         [Description("BATC Muntjac (70 cm / 13 cm, USB)")] Muntjac,
+        [Description("ESP32-C3 DATV (SP8ESA firmware, 13 cm, USB)")] Esp32Datv,
         [Description("Local test - no radio")] LocalTest
     }
 
@@ -124,6 +125,21 @@ namespace DatvTx.Core
 
         [Category("3c BATC Muntjac"), DisplayName("Muntjac COM port"), Description("Blank = find the Muntjac automatically (USB 2E8A:000A). Or enter e.g. COM7.")]
         public string MuntjacPort { get; set; } = "";
+
+        [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 COM port"), Description("Blank = find the board automatically (Espressif USB 303A:1001). Or enter e.g. COM5 or /dev/ttyACM0.")]
+        public string Esp32Port { get; set; } = "";
+
+        [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 level at 0 dB"), Description("Firmware output level (1-480) when the power slider is at 0 dB. Not calibrated power. HB9IIU measured: linear to about 100, compresses above about 250 (more distortion). Default 100.")]
+        public int Esp32MaxLevel { get; set; } = 100;
+
+        [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 lowest level"), Description("The level never goes below this (1-480). Below about 15 the board's carrier leak shows as a spike in the signal; use an attenuator for less power.")]
+        public int Esp32MinLevel { get; set; } = 15;
+
+        [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 DC trim I / Q (codes)"), Description("Carrier leak correction for your board, as \"I Q\" in DAC codes (-512..512), e.g. \"1.5 -0.75\". Blank or 0 0 = none.")]
+        public string Esp32DcTrim { get; set; } = "0 0";
+
+        [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 IQ gain / phase"), Description("Image correction for your board, as \"gain phase\": Q gain 0.7..1.3 and Q phase -40..40 degrees. Default \"1.0 0\".")]
+        public string Esp32IqTrim { get; set; } = "1.0 0";
 
         [Category("3b LimeSDR / HackRF"), DisplayName("Lime calibration at start"), Description("Run LimeSuite TX calibration (reduces carrier leak and image).")]
         public bool LimeCalibrate { get; set; } = true;

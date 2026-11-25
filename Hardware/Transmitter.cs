@@ -85,6 +85,7 @@ namespace DatvTx.Hardware
                 case HardwareType.LimeSdr: return new SdrHelperTransmitter(s, "lime");
                 case HardwareType.HackRf: return new SdrHelperTransmitter(s, "hackrf");
                 case HardwareType.Muntjac: return new SdrHelperTransmitter(s, "muntjac");
+                case HardwareType.Esp32Datv: return new SdrHelperTransmitter(s, "esp32");
                 default: return new LocalTestTransmitter(s);
             }
         }
