@@ -94,6 +94,18 @@ namespace DatvTx.LinuxUi
             Content = g;
         }
 
+        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+        {
+            base.OnPropertyChanged(change);
+            // Locked while transmitting: same face, greyed text (as the Windows app).
+            if (change.Property == IsEffectivelyEnabledProperty || change.Property == IsEnabledProperty)
+            {
+                bool on = IsEffectivelyEnabled;
+                Box.Foreground = LTheme.B(on ? LTheme.Text : Color.FromRgb(96, 116, 138));
+                _arrow.Foreground = LTheme.B(on ? LTheme.Text : Color.FromRgb(96, 116, 138));
+            }
+        }
+
         public string Text
         {
             get { return Box.Text ?? ""; }

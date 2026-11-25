@@ -61,6 +61,36 @@ stay under 85% of full scale in every mode. **First RF test: use a dummy load an
 Run modes (in Settings): *Encode* (normal) and *Control only* (DATV-NotSoEasy Light: OBS or another
 encoder streams to the radio itself).
 
+## Linux
+
+A Linux version (PC, x86-64) is built from the same core code with an Avalonia interface that looks and
+works like the Windows app. Download the `.AppImage` from the release, make it executable and run it:
+
+```
+chmod +x DatvTx-M0CKE-*-x86_64.AppImage
+./DatvTx-M0CKE-*-x86_64.AppImage
+```
+
+There is also a `.tar.gz` (run `datvtx` from the unpacked folder). The .NET runtime is included.
+
+**Install once (Ubuntu / Debian names):**
+
+```
+sudo apt install ffmpeg                  # encoder (uses the system FFmpeg)
+sudo apt install hackrf                  # HackRF One: library + udev rules
+sudo apt install limesuite limesuite-udev  # LimeSDR Mini
+sudo usermod -aG dialout $USER           # BATC Muntjac serial port (log out and in afterwards)
+```
+
+- **Inputs:** cameras are V4L2 (`/dev/video*`). Audio is PulseAudio / PipeWire; pick a microphone or a
+  *Monitor of …* source to send what the PC is playing.
+- **OBS:** `sudo apt install v4l2loopback-dkms`, then in OBS *Tools → Start Virtual Camera* and choose
+  *OBS Virtual Camera* in the app.
+- **GPU encoding:** NVIDIA NVENC and Intel QSV work if your FFmpeg and drivers support them. AMD AMF is
+  Windows-only.
+- **Muntjac:** found automatically as `/dev/ttyACM*`; or set *Settings → Muntjac COM port* to e.g. `/dev/ttyACM0`.
+- Settings and logs are in `~/.config/DatvTx`.
+
 ## Picture quality
 
 At DATV bit rates the encoder is starved, so blocking on motion is mostly a bits-per-frame problem.

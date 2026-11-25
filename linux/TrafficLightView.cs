@@ -83,10 +83,13 @@ namespace DatvTx.LinuxUi
             g.DrawEllipse(null, new Pen(new SolidColorBrush(Color.FromRgb(25, 40, 55)), 1.5), r);
         }
 
+        /// <summary>The app font (Inter, bundled), so custom-drawn text matches the controls.</summary>
+        internal static readonly FontFamily AppFont = new FontFamily("fonts:Inter#Inter, $Default");
+
         internal static FormattedText Text(string s, double size, bool semi, Color c)
         {
             return new FormattedText(s ?? "", System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
-                new Typeface(FontFamily.Default, FontStyle.Normal, semi ? FontWeight.SemiBold : FontWeight.Normal), size, new SolidColorBrush(c));
+                new Typeface(AppFont, FontStyle.Normal, semi ? FontWeight.SemiBold : FontWeight.Normal), size, new SolidColorBrush(c));
         }
     }
 }
