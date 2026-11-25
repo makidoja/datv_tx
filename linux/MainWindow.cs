@@ -61,12 +61,14 @@ namespace DatvTx.LinuxUi
         private readonly List<Control> _tabPages = new List<Control>();
 
         // source & encoder
-        private ComboBox _cmbInput, _cmbVideo, _cmbAudio, _cmbCodec, _cmbPreset, _cmbSize, _cmbFps, _cmbChannels, _cmbAbr;
+        private ComboBox _cmbInput, _cmbCodec, _cmbPreset, _cmbChannels, _cmbAbr;
+        private EditCombo _cmbVideo, _cmbAudio, _cmbSize, _cmbFps;
         private TextBox _txtFile;
         private Button _btnRefresh, _btnBrowse;
 
         // modulator
-        private ComboBox _cmbStandard, _cmbConst, _cmbSr, _cmbFec, _cmbFrame, _cmbRollOff, _cmbFreq;
+        private ComboBox _cmbStandard, _cmbConst, _cmbFec, _cmbFrame, _cmbRollOff;
+        private EditCombo _cmbSr, _cmbFreq;
         private CheckBox _chkPilots, _chkSmooth;
         private NumericUpDown _numDGain;
         private TextBlock _lblTs, _lblVideo, _lblVideoTitle;
@@ -361,7 +363,7 @@ namespace DatvTx.LinuxUi
             _cmbConst.SelectionChanged += (s, e) => { if (!_loading) RefillFec(); if (_numDGain != null) _numDGain.IsEnabled = Constellation() == "qpsk"; };
             grid.Add("Constellation", _cmbConst);
 
-            _cmbSr = LTheme.Combo(true);
+            _cmbSr = LTheme.Edit();
             foreach (int sr in DvbCalc.SymbolRates) _cmbSr.Items.Add(sr.ToString(Inv));
             grid.Add("Symbol rate (KS)", _cmbSr);
 
@@ -396,10 +398,10 @@ namespace DatvTx.LinuxUi
             _cmbPreset = LTheme.Combo();
             foreach (var x in Codecs.Presets) _cmbPreset.Items.Add(x);
             g2.Add("Speed preset", _cmbPreset);
-            _cmbSize = LTheme.Combo(true);
+            _cmbSize = LTheme.Edit();
             foreach (var x in new[] { "640x360", "960x540", "1280x720", "1920x1080", "2560x1440" }) _cmbSize.Items.Add(x);
             g2.Add("Image size", _cmbSize);
-            _cmbFps = LTheme.Combo(true);
+            _cmbFps = LTheme.Edit();
             foreach (var x in new[] { "10", "12.5", "15", "20", "25", "30", "48", "50", "60" }) _cmbFps.Items.Add(x);
             g2.Add("Frame rate", _cmbFps);
             _chkSmooth = LTheme.Check("Smooth motion at 10 fps and below");
@@ -445,12 +447,12 @@ namespace DatvTx.LinuxUi
             _cmbInput.SelectionChanged += (s, e) => UpdateInputVisibility();
             grid.Add("Input", _cmbInput);
 
-            _cmbVideo = LTheme.Combo(true);
+            _cmbVideo = LTheme.Edit();
             _btnRefresh = LTheme.Button("↻"); _btnRefresh.Width = 34;
             _btnRefresh.Click += async (s, e) => await RefreshDevicesAsync();
             grid.Add("Video device", Inline(_cmbVideo, _btnRefresh));
 
-            _cmbAudio = LTheme.Combo(true);
+            _cmbAudio = LTheme.Edit();
             grid.Add("Audio device", _cmbAudio);
 
             _txtFile = LTheme.TextBox();
@@ -557,15 +559,14 @@ namespace DatvTx.LinuxUi
             freqLabel.Margin = new Thickness(0, 0, 0, 2);
             stack.Children.Add(freqLabel);
 
-            _cmbFreq = LTheme.Combo(true);
-            _cmbFreq.FontSize = 20;
-            _cmbFreq.FontWeight = FontWeight.SemiBold;
+            _cmbFreq = LTheme.Edit();
+            _cmbFreq.Box.FontSize = 20;
+            _cmbFreq.Box.FontWeight = FontWeight.SemiBold;
             _cmbFreq.Height = 40;
             for (int i = 0; i < 28; i++) _cmbFreq.Items.Add((2403.25 + i * 0.25).ToString("0.00", Inv));
-            _cmbFreq.SelectionChanged += (s, e) => { if (!_loading && _cmbFreq.IsDropDownOpen == false) UI(async () => await FrequencyCommitted()); };
-            _cmbFreq.DropDownClosed += async (s, e) => await FrequencyCommitted();
-            _cmbFreq.KeyDown += async (s, e) => { if (e.Key == Key.Enter) { e.Handled = true; await FrequencyCommitted(); } };
-            _cmbFreq.LostFocus += async (s, e) => await FrequencyCommitted();
+            _cmbFreq.SelectionChanged += (s, e) => { if (!_loading) UI(async () => await FrequencyCommitted()); };
+            _cmbFreq.Box.KeyDown += async (s, e) => { if (e.Key == Key.Enter) { e.Handled = true; await FrequencyCommitted(); } };
+            _cmbFreq.Box.LostFocus += async (s, e) => await FrequencyCommitted();
             stack.Children.Add(_cmbFreq);
 
             _lblDownlink = LTheme.Label("", 12);
@@ -697,12 +698,9 @@ namespace DatvTx.LinuxUi
         private void HookRecalc(Control c)
         {
             var cb = c as ComboBox;
-            if (cb != null)
-            {
-                cb.SelectionChanged += (s, e) => Recalc();
-                cb.PropertyChanged += (s, e) => { if (e.Property == ComboBox.TextProperty) Recalc(); };
-                return;
-            }
+            if (cb != null) { cb.SelectionChanged += (s, e) => Recalc(); return; }
+            var ec = c as EditCombo;
+            if (ec != null) { ec.TextChanged += (s, e) => Recalc(); return; }
             var ch = c as CheckBox;
             if (ch != null) ch.IsCheckedChanged += (s, e) => Recalc();
         }
@@ -759,11 +757,8 @@ namespace DatvTx.LinuxUi
 
         // ================================================================== parameters <-> UI
 
-        private static string CText(ComboBox cb)
-        {
-            if (cb.IsEditable) return cb.Text ?? "";
-            return cb.SelectedItem != null ? cb.SelectedItem.ToString() : "";
-        }
+        private static string CText(ComboBox cb) { return cb.SelectedItem != null ? cb.SelectedItem.ToString() : ""; }
+        private static string CText(EditCombo cb) { return cb.Text; }
 
         private string Constellation() { return (CText(_cmbConst) == "" ? "QPSK" : CText(_cmbConst)).ToLowerInvariant(); }
 
@@ -806,10 +801,20 @@ namespace DatvTx.LinuxUi
             for (int i = 0; i < cb.Items.Count; i++)
             {
                 string it = Convert.ToString(cb.Items[i], Inv);
-                if (it == value || it.StartsWith(value + " ", StringComparison.Ordinal)) { cb.SelectedIndex = i; if (cb.IsEditable) cb.Text = it; return; }
+                if (it == value || it.StartsWith(value + " ", StringComparison.Ordinal)) { cb.SelectedIndex = i; return; }
             }
-            if (cb.IsEditable) { cb.SelectedIndex = -1; cb.Text = value; }
-            else if (cb.Items.Count > 0 && cb.SelectedIndex < 0) cb.SelectedIndex = 0;
+            if (cb.Items.Count > 0 && cb.SelectedIndex < 0) cb.SelectedIndex = 0;
+        }
+
+        private static void SelectOrText(EditCombo cb, string value)
+        {
+            value = value ?? "";
+            for (int i = 0; i < cb.Items.Count; i++)
+            {
+                string it = Convert.ToString(cb.Items[i], Inv);
+                if (it == value || it.StartsWith(value + " ", StringComparison.Ordinal)) { cb.SelectedIndex = i; return; }
+            }
+            cb.Text = value;
         }
 
         private TxParams ReadParams()

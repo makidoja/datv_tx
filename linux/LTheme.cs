@@ -124,11 +124,10 @@ namespace DatvTx.LinuxUi
             b.BorderBrush = B(border);
         }
 
-        public static ComboBox Combo(bool editable = false)
+        public static ComboBox Combo()
         {
             return new ComboBox
             {
-                IsEditable = editable,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Center,
                 Background = B(Surface2),
@@ -139,6 +138,8 @@ namespace DatvTx.LinuxUi
                 MaxDropDownHeight = 360
             };
         }
+
+        public static EditCombo Edit() { return new EditCombo { MinHeight = 28, VerticalAlignment = VerticalAlignment.Center }; }
 
         public static TextBox TextBox()
         {
