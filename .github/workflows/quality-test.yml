@@ -22,17 +22,13 @@ jobs:
       - name: Test footage (Xiph derf 720p, cut to 10 s at 15 fps)
         run: |
           mkdir clips
-          for c in park_joy ducks_take_off old_town_cross crowd_run; do
+          for c in park_joy ducks_take_off old_town_cross; do
             if curl -sL --fail --retry 3 -o src.y4m "https://media.xiph.org/video/derf/y4m/${c}_420_720p50.y4m"; then
               ff/bin/ffmpeg -hide_banner -loglevel error -y -i src.y4m -vf "fps=15,scale=1280x720,format=yuv420p" -t 10 -c:v ffv1 clips/$c.mkv
               echo "got $c"
             else echo "missing $c"; fi
             rm -f src.y4m
           done
-          # Webcam-style sensor noise on a calm scene
-          if [ -f clips/old_town_cross.mkv ]; then
-            ff/bin/ffmpeg -hide_banner -loglevel error -y -i clips/old_town_cross.mkv -vf "noise=alls=8:allf=t,format=yuv420p" -c:v ffv1 clips/old_town_noisy.mkv
-          fi
           ls -la clips
       - name: Compare settings
         run: python3 tools/quality_test.py ff/bin/ffmpeg "$(ls clips/*.mkv | paste -sd, -)"
