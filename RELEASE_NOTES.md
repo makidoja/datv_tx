@@ -1,4 +1,19 @@
-## DATV TX (M0CKE) v1.1.1
+## DATV TX (M0CKE) v1.2.0
+
+### New in 1.2.0: Pluto with the standard ADI firmware (and clones)
+- **"Pluto - standard ADI firmware (PC modulator)"**: for a Pluto or Pluto clone without F5OEO firmware, as used with
+  DATV-Easy. The app makes the DVB-S/S2 signal on the PC and streams it to the Pluto with ADI's libiio, over the
+  network (Pluto IP, e.g. 192.168.2.1) or USB (set Pluto IP to `usb`). PTT, power and frequency are live; 0 dB = full Pluto output.
+- libiio is included in the Windows download; on Linux: `sudo apt install libiio0`.
+- *Not yet tested on a real Pluto: start on a dummy load.*
+
+### New in 1.2.0: ESP32-C3 transmitter (SP8ESA ESP32-DATV firmware)
+- **"ESP32-C3 DATV (SP8ESA firmware, 13 cm, USB)"**: a ~5 EUR Seeed XIAO ESP32-C3 whose own Wi-Fi radio transmits
+  DVB-S2 QPSK on 13 cm (2300-2450 MHz, 25-1000 KS). Flash the board with HB9IIU's C3CAST first; the app finds it
+  on USB and sends it the DVB-S2 symbols. PTT on pin D10. The power slider maps to the board's level (0 dB = level 100,
+  set in Settings); level and frequency changes restart the transmission briefly.
+- Checked offline against C3CAST's own encoder (identical frames); *not yet tested with a real board.* On air it needs
+  RF filtering and an amplifier: see SP8ESA's and HB9IIU's notes. The firmware is not included (PolyForm Noncommercial).
 
 ### New in 1.1.1: Pluto with F5OEO 0303 firmware, controlled from the app
 - Choose **"Pluto - F5OEO 0303 firmware (web control)"** in Settings → Transmitter. The app sets frequency, DVB-S/S2,
@@ -11,7 +26,7 @@
   test into a dummy load with the Controller page open alongside, and send the log (OPEN LOG FOLDER) with any problems.
 
 ### New in 1.1.0: Linux version (new, not yet tested on air)
-- **DATV TX for Linux PCs (x86-64)**: `DatvTx-M0CKE-1.1.1-x86_64.AppImage` (make it executable and run it), or
+- **DATV TX for Linux PCs (x86-64)**: `DatvTx-M0CKE-1.2.0-x86_64.AppImage` (make it executable and run it), or
   the `.tar.gz`. It has the same layout and controls as the Windows app, built on the same core code. The .NET
   runtime is included.
 - It uses the system FFmpeg (`sudo apt install ffmpeg`). Cameras use V4L2 (including the OBS Virtual Camera via
@@ -55,9 +70,9 @@ settings and bitrate maths and no console menus. Thanks to everyone who tested t
 - Fixed: the frequency box frame no longer flashes white while transmitting.
 
 ### Downloads
-- **DatvTx-M0CKE-1.1.1-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
-- **DatvTx-M0CKE-1.1.1-portable.zip**: the same files, to unzip and run.
-- **DatvTx-M0CKE-1.1.1-x86_64.AppImage** / **DatvTx-M0CKE-1.1.1-linux-x64.tar.gz**: the Linux version (see above).
+- **DatvTx-M0CKE-1.2.0-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
+- **DatvTx-M0CKE-1.2.0-portable.zip**: the same files, to unzip and run.
+- **DatvTx-M0CKE-1.2.0-x86_64.AppImage** / **DatvTx-M0CKE-1.2.0-linux-x64.tar.gz**: the Linux version (see above).
 
 Both include FFmpeg (x264, x265, H.266 VVC, AV1, NVENC, AMD AMF, Intel QSV), the LimeSDR Mini library
 (LimeSuite 23.11) and the HackRF library (libhackrf with libusb). NVIDIA encoding uses a bundled FFmpeg 7.1, which
