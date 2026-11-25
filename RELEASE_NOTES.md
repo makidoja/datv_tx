@@ -1,7 +1,17 @@
-## DATV TX (M0CKE) v1.1.0
+## DATV TX (M0CKE) v1.1.1
+
+### New in 1.1.1: Pluto with F5OEO 0303 firmware, controlled from the app
+- Choose **"Pluto - F5OEO 0303 firmware (web control)"** in Settings → Transmitter. The app sets frequency, DVB-S/S2,
+  constellation, symbol rate, FEC, pilots, frame, roll-off, power and callsign, and switches PTT. It does this through
+  the Pluto's own web pages, so the browser isn't needed.
+- Power and frequency change live. Changes to SR, FEC or mode apply at the next START (the 0303 firmware restarts its
+  modulator to take them). The carrier is kept off across that restart and switched off at STOP.
+- One-time setup on the Pluto: Main mode **DATV**, operating mode **UDP** (System → Setup).
+- *Built from F5OEO's 0303 source and checked against a simulated Pluto; not yet tested on a real 0303 Pluto.* Please
+  test into a dummy load with the Controller page open alongside, and send the log (OPEN LOG FOLDER) with any problems.
 
 ### New in 1.1.0: Linux version (new, not yet tested on air)
-- **DATV TX for Linux PCs (x86-64)**: `DatvTx-M0CKE-1.1.0-x86_64.AppImage` (make it executable and run it), or
+- **DATV TX for Linux PCs (x86-64)**: `DatvTx-M0CKE-1.1.1-x86_64.AppImage` (make it executable and run it), or
   the `.tar.gz`. It has the same layout and controls as the Windows app, built on the same core code. The .NET
   runtime is included.
 - It uses the system FFmpeg (`sudo apt install ffmpeg`). Cameras use V4L2 (including the OBS Virtual Camera via
@@ -45,9 +55,9 @@ settings and bitrate maths and no console menus. Thanks to everyone who tested t
 - Fixed: the frequency box frame no longer flashes white while transmitting.
 
 ### Downloads
-- **DatvTx-M0CKE-1.1.0-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
-- **DatvTx-M0CKE-1.1.0-portable.zip**: the same files, to unzip and run.
-- **DatvTx-M0CKE-1.1.0-x86_64.AppImage** / **DatvTx-M0CKE-1.1.0-linux-x64.tar.gz**: the Linux version (see above).
+- **DatvTx-M0CKE-1.1.1-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
+- **DatvTx-M0CKE-1.1.1-portable.zip**: the same files, to unzip and run.
+- **DatvTx-M0CKE-1.1.1-x86_64.AppImage** / **DatvTx-M0CKE-1.1.1-linux-x64.tar.gz**: the Linux version (see above).
 
 Both include FFmpeg (x264, x265, H.266 VVC, AV1, NVENC, AMD AMF, Intel QSV), the LimeSDR Mini library
 (LimeSuite 23.11) and the HackRF library (libhackrf with libusb). NVIDIA encoding uses a bundled FFmpeg 7.1, which
