@@ -44,7 +44,7 @@ namespace DatvTx.Core
                     }
                 }
 
-            // Smooth motion: 30 fps source blended down to 10 / 12.5 / 15 fps
+            // Smooth motion: blend at 10 fps; 12.5 / 15 fps are left unblended
             foreach (double fps in new[] { 10.0, 12.5, 15.0 })
             {
                 var p = new TxParams { Codec = "libx265", SymbolRateKs = 500, Fec = "2/3", Fps = fps, ImageSize = "1280x720", AudioBitrateK = 16, SmoothMotion = true };
@@ -59,9 +59,10 @@ namespace DatvTx.Core
                 var fm = System.Text.RegularExpressions.Regex.Match(probe, @"([\d.]+) fps");
                 double got;
                 bool fpsOk = fm.Success && double.TryParse(fm.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out got) && Math.Abs(got - fps) < 0.01;
-                bool ok = code == 0 && args.Contains("tmix=frames=") && fpsOk;
+                bool blendExpected = fps <= 10;
+                bool ok = code == 0 && args.Contains("tmix=frames=") == blendExpected && fpsOk;
                 if (!ok) failures++;
-                log.AppendLine((ok ? "PASS " : "FAIL ") + "smooth motion " + want + "  exit=" + code + "  " + FfmpegBuilder.SmoothMotionFilter(p));
+                log.AppendLine((ok ? "PASS " : "FAIL ") + "smooth motion " + want + "  exit=" + code + "  " + (FfmpegBuilder.SmoothMotionFilter(p) ?? "no blend"));
                 if (!ok) { log.AppendLine("  ffmpeg " + args); log.AppendLine(Indent(Tail(output + probe, 25))); }
             }
 

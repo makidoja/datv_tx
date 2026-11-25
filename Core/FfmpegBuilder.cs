@@ -13,14 +13,16 @@ namespace DatvTx.Core
         private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
         /// <summary>
-        /// At 15 fps and below, average the source frames that would otherwise be dropped into each kept
+        /// At 10 fps and below, average the source frames that would otherwise be dropped into each kept
         /// frame (like a camera's shutter blur), so motion looks smooth instead of stepped. The source is
-        /// first brought to 25 or 30 fps, a whole multiple of the output rate, so the blend is even.
+        /// first brought to 30 fps, a whole multiple of the output rate, so the blend is even.
+        /// VMAF tests: a 3-frame blend at 10 fps also encodes better (+2 to +8); a 2-frame blend
+        /// (12.5 / 15 fps) gives ghosted double edges that encode worse, so those rates are left alone.
         /// </summary>
         public static string SmoothMotionFilter(TxParams p)
         {
-            if (!p.SmoothMotion || p.Fps <= 0 || p.Fps > 15) return null;
-            int k = Math.Max(2, (int)Math.Round(30.0 / p.Fps));
+            if (!p.SmoothMotion || p.Fps <= 0 || p.Fps > 10) return null;
+            int k = Math.Max(3, (int)Math.Round(30.0 / p.Fps));
             double norm = p.Fps * k;
             string size = (p.ImageSize ?? "").Replace('x', ':');
             return "scale=" + size + ",fps=" + N(norm) + ",tmix=frames=" + k + ",fps=" + N(p.Fps);

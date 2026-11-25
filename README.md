@@ -70,6 +70,10 @@ VMAF tests on Xiph's 720p test clips at 375 and 600 kb/s (`tools/quality_test.py
 - **Frame rate matters most.** 10 fps instead of 15 gives each frame 50% more bits and scored far better,
   especially on the worst (most blocky) frames. The DVB tab suggests it when the bit rate is low for the
   picture size and frame rate.
+- **Smooth motion** (on by default) blends the dropped frames at 10 fps and below, like a camera's
+  motion blur. Pans look smoother, and it also encoded better (+2 to +8 VMAF). At 12.5 / 15 fps a
+  two-frame blend gave ghosted edges that encoded worse, so those rates just drop frames.
+- **Match the source.** OBS at 30 fps: use 10 or 15 fps. A 25 / 50 fps source: 12.5 fps.
 - **A slower x265 preset** ("fast", "slow") helps, if your CPU keeps up.
 - **H.265 beats H.264** by a clear margin. B-frames on or off made little difference at these rates.
 - Letting the encoder vary its rate under a cap (the default) is slightly better than forcing it constant.

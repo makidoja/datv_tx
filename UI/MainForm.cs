@@ -411,7 +411,7 @@ namespace DatvTx.UI
             _cmbFps = Theme.Combo(true);
             _cmbFps.Items.AddRange(new object[] { "10", "12.5", "15", "20", "25", "30", "48", "50", "60" });
             Theme.AddRow(g2, "Frame rate", _cmbFps);
-            _chkSmooth = Theme.Check("Smooth motion (blend dropped frames)");
+            _chkSmooth = Theme.Check("Smooth motion at 10 fps and below");
             Theme.AddRow(g2, "", _chkSmooth);
 
             _cmbChannels = Theme.Combo();
