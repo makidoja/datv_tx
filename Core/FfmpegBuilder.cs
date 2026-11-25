@@ -83,10 +83,11 @@ namespace DatvTx.Core
             string fps = N(p.Fps);
             string preset = string.IsNullOrEmpty(p.Preset) ? s.PresetSoft : p.Preset;
             // The TS muxer pads to the exact channel rate (-muxrate), so the encoder need not be forced
-            // constant: capping it (maxrate) with a 2 s buffer lets motion borrow from still scenes.
+            // constant: cap it (maxrate) and let it spend less on still scenes. The buffer stays at the
+            // original size; a bigger one let bursts exceed the channel rate.
             string shaping = s.StrictCbr
                 ? "-minrate " + N(e.VideoBitrateK) + "K -maxrate " + N(e.VideoBitrateK) + "K -bufsize " + N(e.BufSizeK) + "K"
-                : "-maxrate " + N(e.VideoBitrateK) + "K -bufsize " + N(e.BufSizeK * 2) + "K";
+                : "-maxrate " + N(e.VideoBitrateK) + "K -bufsize " + N(e.BufSizeK) + "K";
             string muxrate = "-muxrate " + N(e.TsBitrateK) + "K";
             bool cbr = !s.Vbr;
 
