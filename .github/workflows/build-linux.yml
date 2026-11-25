@@ -58,7 +58,9 @@ jobs:
 
       - name: Self-test (encoders via the system FFmpeg)
         run: |
-          ./out-linux/datvtx --selftest selftest.log; code=$?
+          set +e
+          ./out-linux/datvtx --selftest selftest.log
+          code=$?
           cat selftest.log
           exit $code
 
