@@ -1,4 +1,15 @@
-## DATV TX (M0CKE) v1.2.0
+## DATV TX (M0CKE) v1.2.1
+
+### New in 1.2.1
+- **Starts OBS for you:** when the video device is OBS's virtual camera and OBS isn't running, START opens OBS
+  (minimised, virtual camera on) and waits for it before encoding. Settings → Input: *Start OBS automatically* (on),
+  *OBS program* (blank = find it), *OBS start-up wait*.
+
+### Fixed in 1.2.1
+- Compact view was always on top whatever the ON TOP button showed; ON TOP now decides in both views.
+- ESP32-C3 / Muntjac port: "23" or "com23" now means COM23. The error now says whether the port doesn't exist or is in
+  use by another program (close C3CAST or serial monitors first). Leaving the port blank finds the board automatically.
+
 
 ### New in 1.2.0: Pluto with the standard ADI firmware (and clones)
 - **"Pluto - standard ADI firmware (PC modulator)"**: for a Pluto or Pluto clone without F5OEO firmware, as used with
@@ -26,7 +37,7 @@
   test into a dummy load with the Controller page open alongside, and send the log (OPEN LOG FOLDER) with any problems.
 
 ### New in 1.1.0: Linux version (new, not yet tested on air)
-- **DATV TX for Linux PCs (x86-64)**: `DatvTx-M0CKE-1.2.0-x86_64.AppImage` (make it executable and run it), or
+- **DATV TX for Linux PCs (x86-64)**: `DatvTx-M0CKE-1.2.1-x86_64.AppImage` (make it executable and run it), or
   the `.tar.gz`. It has the same layout and controls as the Windows app, built on the same core code. The .NET
   runtime is included.
 - It uses the system FFmpeg (`sudo apt install ffmpeg`). Cameras use V4L2 (including the OBS Virtual Camera via
@@ -70,9 +81,9 @@ settings and bitrate maths and no console menus. Thanks to everyone who tested t
 - Fixed: the frequency box frame no longer flashes white while transmitting.
 
 ### Downloads
-- **DatvTx-M0CKE-1.2.0-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
-- **DatvTx-M0CKE-1.2.0-portable.zip**: the same files, to unzip and run.
-- **DatvTx-M0CKE-1.2.0-x86_64.AppImage** / **DatvTx-M0CKE-1.2.0-linux-x64.tar.gz**: the Linux version (see above).
+- **DatvTx-M0CKE-1.2.1-Setup.exe**: the installer. It needs no admin rights and installs to your user folder.
+- **DatvTx-M0CKE-1.2.1-portable.zip**: the same files, to unzip and run.
+- **DatvTx-M0CKE-1.2.1-x86_64.AppImage** / **DatvTx-M0CKE-1.2.1-linux-x64.tar.gz**: the Linux version (see above).
 
 Both include FFmpeg (x264, x265, H.266 VVC, AV1, NVENC, AMD AMF, Intel QSV), the LimeSDR Mini library
 (LimeSuite 23.11) and the HackRF library (libhackrf with libusb). NVIDIA encoding uses a bundled FFmpeg 7.1, which
