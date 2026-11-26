@@ -415,7 +415,7 @@ namespace DatvTx.UI
             Theme.AddRow(g2, "", _chkSmooth);
 
             _cmbChannels = Theme.Combo();
-            _cmbChannels.Items.AddRange(new object[] { "Mono", "Stereo", "5.1", "7.1" });
+            _cmbChannels.Items.AddRange(new object[] { "Mono", "Stereo", "5.1" }); // 7.1 AAC can't be carried in a DVB TS
             Theme.AddRow(g2, "Audio", _cmbChannels);
 
             _cmbAbr = Theme.Combo();
@@ -869,7 +869,7 @@ namespace DatvTx.UI
                 Preset = (_cmbPreset.SelectedItem as string) ?? "veryfast",
                 ImageSize = _cmbSize.Text.Trim(),
                 Fps = FirstNumber(_cmbFps.Text, 25),
-                AudioChannels = new[] { 1, 2, 6, 8 }[Math.Max(0, _cmbChannels.SelectedIndex)],
+                AudioChannels = new[] { 1, 2, 6 }[Math.Min(2, Math.Max(0, _cmbChannels.SelectedIndex))],
                 AudioBitrateK = (int)FirstNumber(_cmbAbr.Text, 32),
                 DvbS2 = DvbS2(),
                 Constellation = Constellation(),
@@ -898,7 +898,8 @@ namespace DatvTx.UI
                 SelectOrText(_cmbPreset, string.IsNullOrEmpty(p.Preset) ? "veryfast" : p.Preset);
                 SelectOrText(_cmbSize, p.ImageSize);
                 SelectOrText(_cmbFps, p.Fps.ToString("0.##", Inv));
-                _cmbChannels.SelectedIndex = Math.Max(0, Array.IndexOf(new[] { 1, 2, 6, 8 }, p.AudioChannels));
+                int chIdx = Array.IndexOf(new[] { 1, 2, 6 }, p.AudioChannels);
+                _cmbChannels.SelectedIndex = chIdx >= 0 ? chIdx : 1; // anything else (old 7.1) -> stereo
                 SelectOrText(_cmbAbr, p.AudioBitrateK.ToString(Inv));
                 _cmbStandard.SelectedIndex = p.DvbS2 ? 0 : 1;
                 _cmbConst.SelectedIndex = Math.Max(0, Array.IndexOf(DvbCalc.Constellations, p.Constellation));

@@ -42,7 +42,7 @@ namespace DatvTx.Core
         /// </summary>
         public static int AudioRate(TxParams p, AppSettings s)
         {
-            double perChannel = p.AudioBitrateK / (double)System.Math.Max(1, p.AudioChannels);
+            double perChannel = p.AudioBitrateK / (double)(p.AudioChannels == 1 || p.AudioChannels == 6 ? p.AudioChannels : 2);
             if (s.AudioCodec == "aac" || s.AudioCodec == "libfdk_aac")
             {
                 if (perChannel <= 8) return System.Math.Min(s.AudioSampleRate, 24000);
@@ -171,7 +171,8 @@ namespace DatvTx.Core
 
             a.Add("-g " + e.Keyframe);
             a.Add("-acodec " + s.AudioCodec);
-            a.Add("-ac " + p.AudioChannels);
+            // AAC in a DVB transport stream (ADTS) carries mono, stereo or 5.1 here; anything else -> stereo.
+            a.Add("-ac " + (p.AudioChannels == 1 || p.AudioChannels == 6 ? p.AudioChannels : 2));
             a.Add("-b:a " + p.AudioBitrateK + "k");
             a.Add("-f " + (Codecs.IsAv1(p.Codec) ? "nut" : "mpegts"));
             if (cbr) a.Add(muxrate);

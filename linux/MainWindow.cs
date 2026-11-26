@@ -407,7 +407,7 @@ namespace DatvTx.LinuxUi
             _chkSmooth = LTheme.Check("Smooth motion at 10 fps and below");
             g2.Add("", _chkSmooth);
             _cmbChannels = LTheme.Combo();
-            foreach (var x in new[] { "Mono", "Stereo", "5.1", "7.1" }) _cmbChannels.Items.Add(x);
+            foreach (var x in new[] { "Mono", "Stereo", "5.1" }) _cmbChannels.Items.Add(x); // 7.1 AAC can't be carried in a DVB TS
             g2.Add("Audio", _cmbChannels);
             _cmbAbr = LTheme.Combo();
             foreach (var x in new[] { "8", "16", "32", "48", "64", "96", "128", "192", "256" }) _cmbAbr.Items.Add(x);
@@ -829,7 +829,7 @@ namespace DatvTx.LinuxUi
                 Preset = (_cmbPreset.SelectedItem as string) ?? "veryfast",
                 ImageSize = CText(_cmbSize).Trim(),
                 Fps = FirstNumber(CText(_cmbFps), 25),
-                AudioChannels = new[] { 1, 2, 6, 8 }[Math.Max(0, _cmbChannels.SelectedIndex)],
+                AudioChannels = new[] { 1, 2, 6 }[Math.Min(2, Math.Max(0, _cmbChannels.SelectedIndex))],
                 AudioBitrateK = (int)FirstNumber(CText(_cmbAbr), 32),
                 DvbS2 = DvbS2(),
                 Constellation = Constellation(),
@@ -857,7 +857,8 @@ namespace DatvTx.LinuxUi
                 SelectOrText(_cmbPreset, string.IsNullOrEmpty(p.Preset) ? "veryfast" : p.Preset);
                 SelectOrText(_cmbSize, p.ImageSize);
                 SelectOrText(_cmbFps, p.Fps.ToString("0.##", Inv));
-                _cmbChannels.SelectedIndex = Math.Max(0, Array.IndexOf(new[] { 1, 2, 6, 8 }, p.AudioChannels));
+                int chIdx = Array.IndexOf(new[] { 1, 2, 6 }, p.AudioChannels);
+                _cmbChannels.SelectedIndex = chIdx >= 0 ? chIdx : 1; // anything else (old 7.1) -> stereo
                 SelectOrText(_cmbAbr, p.AudioBitrateK.ToString(Inv));
                 _cmbStandard.SelectedIndex = p.DvbS2 ? 0 : 1;
                 _cmbConst.SelectedIndex = Math.Max(0, Array.IndexOf(DvbCalc.Constellations, p.Constellation));

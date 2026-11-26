@@ -171,6 +171,18 @@ namespace DatvTx.UI
         }
         protected override void OnLostFocus(EventArgs e) { base.OnLostFocus(e); ClearSelectionLater(); }
 
+        // Scrolling the page over a dropdown must not change its value (that's how 7.1 audio got picked
+        // by accident). The wheel only changes a dropdown you have clicked into.
+        protected override void OnMouseWheel(MouseEventArgs e)
+        {
+            if (!Focused && !ContainsFocus && !DroppedDown)
+            {
+                var h = e as HandledMouseEventArgs;
+                if (h != null) { h.Handled = true; return; }
+            }
+            base.OnMouseWheel(e);
+        }
+
         protected override void OnKeyDown(KeyEventArgs e)
         {
             base.OnKeyDown(e);
