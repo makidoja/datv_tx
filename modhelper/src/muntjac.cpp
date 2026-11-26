@@ -93,9 +93,21 @@ void Emit(std::vector<uint8_t> &out, uint8_t v)
 bool MuntjacLink::Open(const std::string &port, std::string &err)
 {
 #ifdef _WIN32
-    std::string path = port.compare(0, 4, "\\\\.\\") == 0 ? port : "\\\\.\\" + port;
+    std::string name = port;
+    if (!name.empty() && name.find_first_not_of("0123456789") == std::string::npos) name = "COM" + name; // "23" -> COM23
+    std::string path = name.compare(0, 4, "\\\\.\\") == 0 ? name : "\\\\.\\" + name;
     HANDLE h = CreateFileA(path.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
-    if (h == INVALID_HANDLE_VALUE) { err = "cannot open " + port + " (is the Muntjac plugged in and not in use?)"; return false; }
+    if (h == INVALID_HANDLE_VALUE)
+    {
+        DWORD e = GetLastError();
+        if (e == ERROR_FILE_NOT_FOUND || e == ERROR_PATH_NOT_FOUND)
+            err = "there is no " + name + " (check the port in Device Manager, or leave the port setting blank to find the device)";
+        else if (e == ERROR_ACCESS_DENIED)
+            err = name + " is in use by another program (close C3CAST, Arduino / PlatformIO serial monitors, Portsdown tools...)";
+        else
+            err = "cannot open " + name + " (Windows error " + std::to_string((unsigned long)e) + ")";
+        return false;
+    }
     DCB dcb;
     memset(&dcb, 0, sizeof(dcb));
     dcb.DCBlength = sizeof(dcb);

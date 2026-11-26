@@ -123,6 +123,16 @@ namespace DatvTx.Hardware
             }
         }
 
+        /// <summary>"23" or "com23" → "COM23" on Windows; other names unchanged.</summary>
+        private static string PortName(string text)
+        {
+            string t = (text ?? "").Trim();
+            if (!Platform.IsWindows) return t;
+            if (System.Text.RegularExpressions.Regex.IsMatch(t, @"^\d+$")) return "COM" + t;
+            if (t.StartsWith("com", StringComparison.OrdinalIgnoreCase)) return "COM" + t.Substring(3);
+            return t;
+        }
+
         private static double[] Pair(string text, double a, double b)
         {
             var parts = (text ?? "").Replace(',', ' ').Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
@@ -204,7 +214,7 @@ namespace DatvTx.Hardware
             if (pttOn) args.Append(" --ptt");
             if (IsMuntjac)
             {
-                string port = string.IsNullOrWhiteSpace(Settings.MuntjacPort) ? FindMuntjacPort() : Settings.MuntjacPort.Trim();
+                string port = string.IsNullOrWhiteSpace(Settings.MuntjacPort) ? FindMuntjacPort() : PortName(Settings.MuntjacPort);
                 if (string.IsNullOrEmpty(port))
                     throw new InvalidOperationException("No Muntjac found. Plug it in (USB 2E8A:000A) or set Settings → Muntjac COM port" + (Platform.IsWindows ? "." : " (e.g. /dev/ttyACM0)."));
                 args.Append(" --device ").Append(port);
@@ -217,7 +227,7 @@ namespace DatvTx.Hardware
             }
             if (IsEsp32)
             {
-                string port = string.IsNullOrWhiteSpace(Settings.Esp32Port) ? FindEsp32Port() : Settings.Esp32Port.Trim();
+                string port = string.IsNullOrWhiteSpace(Settings.Esp32Port) ? FindEsp32Port() : PortName(Settings.Esp32Port);
                 if (string.IsNullOrEmpty(port))
                     throw new InvalidOperationException("No ESP32-C3 found. Plug it in by its USB-C port (Espressif 303A:1001) or set Settings → ESP32 COM port.");
                 args.Append(" --device ").Append(port);
