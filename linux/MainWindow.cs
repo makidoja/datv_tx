@@ -252,7 +252,7 @@ namespace DatvTx.LinuxUi
 
         private void ApplyTopMost()
         {
-            Topmost = _s.AlwaysOnTop || (_compact && _s.CompactOnTop);
+            Topmost = _s.AlwaysOnTop; // the ON TOP button decides, in full and compact view
             if (_btnTop != null)
                 LTheme.Paint(_btnTop, _s.AlwaysOnTop ? LTheme.Accent : LTheme.Surface2, _s.AlwaysOnTop ? LTheme.Accent : LTheme.Border);
         }

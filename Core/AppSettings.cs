@@ -226,8 +226,8 @@ namespace DatvTx.Core
 
         [Browsable(false)] public bool AlwaysOnTop { get; set; } = false;
 
-        [Category("1 Station"), DisplayName("Compact window on top"), Description("Keep the compact transmit window above other windows (e.g. OBS).")]
-        public bool CompactOnTop { get; set; } = true;
+        /// <summary>No longer used: the ON TOP button controls always-on-top in both views. Kept so old settings files load.</summary>
+        [Browsable(false)] public bool CompactOnTop { get; set; } = false;
 
         [Browsable(false), JsonIgnore]
         public string EffectiveCmdRoot

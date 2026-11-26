@@ -199,7 +199,7 @@ namespace DatvTx.UI
         /// <summary>Always on top: the ON TOP button, or the compact-window setting.</summary>
         private void ApplyTopMost()
         {
-            bool top = _s.AlwaysOnTop || (_compact && _s.CompactOnTop);
+            bool top = _s.AlwaysOnTop; // the ON TOP button decides, in full and compact view
             TopMost = top;
             if (_btnTop != null)
                 Theme.Paint(_btnTop, _s.AlwaysOnTop ? Theme.Accent : Theme.Surface2, _s.AlwaysOnTop ? Theme.Accent : Theme.Border);
