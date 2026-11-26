@@ -1,3 +1,12 @@
+## DATV TX (M0CKE) v1.2.2
+
+### Fixed in 1.2.2
+- **Encoder failed at start with audio set to 7.1** (FFmpeg: "channelConfiguration > 7 is not supported in ADTS").
+  AAC in a DVB transport stream can't carry 7.1, so it has been removed: the choices are Mono, Stereo and 5.1.
+  A saved 7.1 setting or memory now loads as Stereo.
+- Windows: scrolling the mouse wheel over a dropdown no longer changes it unless you've clicked into it first
+  (this is how settings could change by accident).
+
 ## DATV TX (M0CKE) v1.2.1
 
 ### New in 1.2.1
