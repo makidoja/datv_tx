@@ -179,6 +179,15 @@ namespace DatvTx.Core
         public int Av1Quality { get; set; } = 10;
 
         // ---------------- Input ----------------
+        [Category("6 Input"), DisplayName("Start OBS automatically"), Description("When the video device is OBS's virtual camera and OBS isn't running, START opens OBS with its virtual camera on.")]
+        public bool StartObs { get; set; } = true;
+
+        [Category("6 Input"), DisplayName("OBS program"), Description("Blank = find OBS Studio automatically. Or the full path to obs64.exe (Linux: obs).")]
+        public string ObsPath { get; set; } = "";
+
+        [Category("6 Input"), DisplayName("OBS start-up wait (s)"), Description("How long to give OBS to load and start its virtual camera before encoding (3-60).")]
+        public int ObsStartWaitSeconds { get; set; } = 8;
+
         [Category("6 Input"), DisplayName("UDP input"), Description("Used when input is Network UDP.")]
         public string InputUdp { get; set; } = "udp://230.0.0.11:20000";
 

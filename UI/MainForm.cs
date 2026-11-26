@@ -1132,6 +1132,9 @@ namespace DatvTx.UI
 
             try
             {
+                if (_s.Mode == RunMode.Encode && p.Input == InputType.Capture)
+                    await ObsLauncher.EnsureRunningAsync(_s, p.VideoDevice, m => AppendLog(m));
+
                 if (_tx.NeedsConnection && !_tx.IsConnected)
                 {
                     AppendLog("Connecting to " + _tx.DisplayName + "...");
