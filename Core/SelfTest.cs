@@ -138,8 +138,8 @@ namespace DatvTx.Core
                 es.Normalise();
                 double lo, hi;
                 using (var esp = new DatvTx.Hardware.SdrHelperTransmitter(es, "esp32")) { lo = esp.MinGainDb; hi = esp.MaxGainDb; }
-                bool ok = lo == -10 && hi == -6;
-                log.AppendLine((ok ? "PASS" : "FAIL") + " ESP32 default slider " + lo + " to " + hi + " dB (want -10 to -6)");
+                bool ok = lo == -10.5 && hi == -6;
+                log.AppendLine((ok ? "PASS" : "FAIL") + " ESP32 default slider " + lo + " to " + hi + " dB (want -10.5 to -6, level 75-125)");
                 if (!ok) failures++;
             }
 

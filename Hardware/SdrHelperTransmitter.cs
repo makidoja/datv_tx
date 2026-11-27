@@ -41,6 +41,8 @@ namespace DatvTx.Hardware
                 int min = Math.Max(1, Math.Min(max, Settings.Esp32MinLevel));
                 if (min >= max) return -0.25;
                 double db = Math.Ceiling(20 * Math.Log10(min / (double)max) * 4) / 4;
+                // go one more step down if that still rounds to the lowest level (e.g. 75 of 250 = -10.5 dB)
+                if (Math.Round(max * Math.Pow(10, (db - 0.25) / 20)) >= min) db -= 0.25;
                 return Math.Min(MaxGainDb - 0.25, Math.Min(-0.25, db));
             }
         }

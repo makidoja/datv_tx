@@ -133,8 +133,8 @@ namespace DatvTx.Core
         [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 level at 0 dB"), Description("Firmware output level (1-480) when the power slider is at 0 dB. Not calibrated power. Usable range is about 15-250: linear to about 100, compresses above about 250 (more distortion). Default 250.")]
         public int Esp32MaxLevel { get; set; } = 250;
 
-        [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 lowest level"), Description("Level at the bottom of the power slider (1-480); the slider's lowest dB is worked out from this. The signal is cleanest around level 100 (-8 dB); below about 15 the board's carrier leak shows as a spike. Use an attenuator for less power. Default 79 (-10 dB).")]
-        public int Esp32MinLevel { get; set; } = 79;
+        [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 lowest level"), Description("Level at the bottom of the power slider (1-480); the slider's lowest dB is worked out from this. The signal is cleanest around level 100 (-8 dB); below about 15 the board's carrier leak shows as a spike. Use an attenuator for less power. Default 75 (-10.5 dB).")]
+        public int Esp32MinLevel { get; set; } = 75;
 
         [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 highest level"), Description("Level at the top of the power slider (1-480); the slider's highest dB is worked out from this. Above about 125 the output compresses and the signal gets dirtier. Default 125 (-6 dB).")]
         public int Esp32TopLevel { get; set; } = 125;
@@ -343,8 +343,8 @@ namespace DatvTx.Core
             }
             if (SettingsVersion < 5)
             {
-                // v1.2.4 and earlier let the ESP32 slider go from level 15 to 250; it's cleanest at -10 to -6 dB (79-125).
-                if (Esp32MinLevel == 15) Esp32MinLevel = 79;
+                // v1.2.4 and earlier let the ESP32 slider go from level 15 to 250; the usable clean range is 75-125.
+                if (Esp32MinLevel == 15) Esp32MinLevel = 75;
                 SettingsVersion = 5;
             }
             if (Memories == null) Memories = new List<TxMemory>();

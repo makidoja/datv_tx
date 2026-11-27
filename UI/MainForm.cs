@@ -701,7 +701,7 @@ namespace DatvTx.UI
 
         private double SliderGainDb() { return _trkPower.Value / 4.0; }
 
-        /// <summary>Slider range for the selected hardware: its lowest power (ESP32-C3: -10 to -6 dB) up to the power limit.</summary>
+        /// <summary>Slider range for the selected hardware: its lowest power (ESP32-C3: -10.5 to -6 dB) up to the power limit.</summary>
         private void ApplyPowerRange()
         {
             int min = (int)Math.Round((_tx != null ? _tx.MinGainDb : -50) * 4);
