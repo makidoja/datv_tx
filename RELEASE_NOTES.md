@@ -1,3 +1,10 @@
+## DATV TX (M0CKE) v1.2.4
+
+### Changed
+- A new install starts with the **callsign blank** (it was M0CKE). START asks you to enter yours in
+  Settings → Station first, as it's used as the DVB service name and in the Pluto MQTT topics.
+  An existing install keeps the callsign it has.
+
 ## DATV TX (M0CKE) v1.2.3
 
 ### Changed

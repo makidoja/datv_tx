@@ -41,7 +41,7 @@ namespace DatvTx.Core
     {
         // ---------------- Station ----------------
         [Category("1 Station"), DisplayName("Callsign"), Description("Callsign used as the DVB service name and in the Pluto MQTT topics.")]
-        public string Callsign { get; set; } = "M0CKE";
+        public string Callsign { get; set; } = "";
 
         [Category("1 Station"), DisplayName("Service provider"), Description("DVB service provider name shown on receivers.")]
         public string ServiceProvider { get; set; } = "DATV-TX";

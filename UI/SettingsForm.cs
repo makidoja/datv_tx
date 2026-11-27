@@ -83,6 +83,7 @@ namespace DatvTx.UI
                 _status.Text = is0303 ? "On 0303 firmware the callsign is sent at each START." : "Only needed for a Pluto with F5OEO MQTT or 0303 firmware.";
                 return;
             }
+            if (sendCallsign && string.IsNullOrWhiteSpace(Result.Callsign)) { _status.Text = "Enter your callsign first (Station → Callsign)."; return; }
             _status.Text = "Connecting to " + Result.PlutoIp + "...";
             Transmitter tx = is0303 ? (Transmitter)new Pluto0303Transmitter(Result) : new PlutoMqttTransmitter(Result);
             try

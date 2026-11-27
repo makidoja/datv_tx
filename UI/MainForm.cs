@@ -1115,6 +1115,7 @@ namespace DatvTx.UI
 
         private string Validate(TxParams p)
         {
+            if (string.IsNullOrWhiteSpace(_s.Callsign)) return "Enter your callsign in Settings → Station first.";
             if (p.SymbolRateKs < 25 || p.SymbolRateKs > 4000) return "Symbol rate must be 25 to 4000 KS.";
             if (p.TxFrequencyMHz < 70 || p.TxFrequencyMHz > 6000) return "TX frequency must be 70 to 6000 MHz.";
             if (p.GainDb > _s.PowerLimitDb) return "Gain is above the power limit (" + _s.PowerLimitDb + " dB).";
