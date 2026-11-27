@@ -11,7 +11,7 @@
 
 ### New in 1.2.1
 - **Starts OBS for you:** when the video device is OBS's virtual camera and OBS isn't running, START opens OBS
-  (minimised, virtual camera on) and waits for it before encoding. Settings → Input: *Start OBS automatically* (on),
+  (virtual camera on) and waits for it before encoding. Settings → Input: *Start OBS automatically* (on),
   *OBS program* (blank = find it), *OBS start-up wait*.
 
 ### Fixed in 1.2.1

@@ -8,7 +8,7 @@ namespace DatvTx.Core
 {
     /// <summary>
     /// Starts OBS Studio with its virtual camera when the video source is OBS and OBS isn't running.
-    /// OBS command line: --startvirtualcam, --minimize-to-tray (see the OBS wiki, "Launch Parameters").
+    /// OBS command line: --startvirtualcam (opens as a normal window) (see the OBS wiki, "Launch Parameters").
     /// </summary>
     public static class ObsLauncher
     {
@@ -87,7 +87,7 @@ namespace DatvTx.Core
             }
             try
             {
-                var psi = new ProcessStartInfo(exe, "--startvirtualcam --minimize-to-tray --disable-shutdown-check")
+                var psi = new ProcessStartInfo(exe, "--startvirtualcam --disable-shutdown-check")
                 {
                     UseShellExecute = false,
                     // OBS must run from its own folder or it can't find its locale and plugin files.
