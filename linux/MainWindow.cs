@@ -663,6 +663,19 @@ namespace DatvTx.LinuxUi
 
         private double SliderGainDb() { return _trkPower.Value / 4.0; }
 
+        /// <summary>Slider range for the selected hardware: its lowest power (ESP32-C3: -15 dB) up to the power limit.</summary>
+        private void ApplyPowerRange()
+        {
+            double min = Math.Round((_tx != null ? _tx.MinGainDb : -50) * 4);
+            double max = Math.Max(min + 4, Math.Round(Math.Min(0, _s.PowerLimitDb) * 4));
+            double v = Math.Max(min, Math.Min(max, _trkPower.Value));
+            _trkPower.Minimum = min;
+            _trkPower.Maximum = max;
+            _trkPower.Value = v;
+            _trkPower.TickFrequency = max - min > 80 ? 20 : 4;
+            if (_lblPower != null) _lblPower.Text = SliderGainDb().ToString("0.00", Inv) + "\ndB";
+        }
+
         private void SetGainSlider(double db)
         {
             double v = Math.Round(db * 4);
@@ -872,7 +885,7 @@ namespace DatvTx.LinuxUi
                 _chkSmooth.IsChecked = p.SmoothMotion;
                 SelectRollOff(p.RollOff);
                 SelectOrText(_cmbFreq, p.TxFrequencyMHz.ToString("0.00", Inv));
-                _trkPower.Maximum = Math.Max(-196, Math.Round(Math.Min(0, _s.PowerLimitDb) * 4));
+                ApplyPowerRange();
                 SetGainSlider(p.GainDb);
                 _numDGain.Value = 0;
                 _numDGain.IsEnabled = p.Constellation == "qpsk";
@@ -959,8 +972,7 @@ namespace DatvTx.LinuxUi
             _telemetry.Clear();
             _lblHardware.Text = _tx.DisplayName;
             _lblHelp.Text = _tx.HelpText;
-            _trkPower.Maximum = Math.Max(-196, Math.Round(Math.Min(0, _s.PowerLimitDb) * 4));
-            if (_trkPower.Value > _trkPower.Maximum) _trkPower.Value = _trkPower.Maximum;
+            ApplyPowerRange();
             UpdateHeader();
             UpdateButtons();
         }

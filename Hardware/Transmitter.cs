@@ -61,6 +61,9 @@ namespace DatvTx.Hardware
         public virtual Task SetFrequencyAsync(double mhz) { return Task.FromResult(0); }
         public virtual Task SetRollOffAsync(double rollOff) { return Task.FromResult(0); }
 
+        /// <summary>Lowest power slider setting in dB for this transmitter.</summary>
+        public virtual double MinGainDb { get { return -50; } }
+
         /// <summary>Roll-off values this transmitter supports (first = default).</summary>
         public virtual double[] RollOffs { get { return new[] { 0.20, 0.25, 0.35 }; } }
 

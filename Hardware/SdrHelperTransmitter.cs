@@ -30,6 +30,9 @@ namespace DatvTx.Hardware
 
         public override string DisplayName { get { return IsPluto ? "Pluto (standard firmware) " + Settings.PlutoIp : IsEsp32 ? "ESP32-C3 DATV" : IsMuntjac ? "BATC Muntjac" : IsHackRf ? "HackRF One" : "LimeSDR Mini"; } }
 
+        /// <summary>ESP32-C3: below -15 dB the board's carrier leak shows as a spike, so -15 dB is the floor.</summary>
+        public override double MinGainDb { get { return IsEsp32 ? -15 : base.MinGainDb; } }
+
         public override double[] RollOffs
         {
             get
@@ -110,7 +113,7 @@ namespace DatvTx.Hardware
                 if (IsPluto)
                     return "Pluto with the standard ADI firmware: this PC makes the DVB-S2 signal and streams it to the Pluto (libiio, via " + (Settings.PlutoIp == "usb" ? "USB" : "its IP address") + "). Power 0 dB = full Pluto output. Set Pluto IP to \"usb\" to use the USB backend.";
                 if (IsEsp32)
-                    return "ESP32-C3 (SP8ESA ESP32-DATV firmware, flash it with C3CAST): DVB-S2 QPSK on 13 cm. Needs RF filtering and a PA on air. Level and frequency changes restart the transmission briefly.";
+                    return "ESP32-C3 (SP8ESA ESP32-DATV firmware, flash it with C3CAST): DVB-S2 QPSK on 13 cm. Power -15 to 0 dB (lower shows a carrier spike; use an attenuator for less). Needs RF filtering and a PA on air. Level and frequency changes restart the transmission briefly.";
                 if (IsMuntjac)
                     return "Muntjac by USB: DVB-S2 QPSK/8PSK, 125-1000 KS, 389.5-510 / 2390-2490 MHz. Power 0 dB = 0.20.";
                 if (!Platform.IsWindows)
@@ -205,7 +208,7 @@ namespace DatvTx.Hardware
             if (_proc != null) await ShutdownAsync();
             if (!File.Exists(HelperExe)) throw new FileNotFoundException(Platform.Exe("datvtx_mod") + " is missing from the program folder.", HelperExe);
 
-            double gain = Math.Min(p.GainDb, Settings.PowerLimitDb);
+            double gain = Math.Max(MinGainDb, Math.Min(p.GainDb, Settings.PowerLimitDb));
             var args = new StringBuilder("--radio " + _radio);
             args.Append(" --freq ").Append((p.TxFrequencyMHz * 1e6).ToString("0", Inv));
             args.Append(ModArgs(p));
@@ -315,6 +318,7 @@ namespace DatvTx.Hardware
         public override Task SetGainAsync(double db)
         {
             if (db > Settings.PowerLimitDb) db = Settings.PowerLimitDb;
+            if (db < MinGainDb) db = MinGainDb;
             return Send("gain " + db.ToString("0.##", Inv));
         }
 

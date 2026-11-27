@@ -701,6 +701,21 @@ namespace DatvTx.UI
 
         private double SliderGainDb() { return _trkPower.Value / 4.0; }
 
+        /// <summary>Slider range for the selected hardware: its lowest power (ESP32-C3: -15 dB) up to the power limit.</summary>
+        private void ApplyPowerRange()
+        {
+            int min = (int)Math.Round((_tx != null ? _tx.MinGainDb : -50) * 4);
+            int max = Math.Max(min + 4, (int)Math.Round(Math.Min(0, _s.PowerLimitDb) * 4));
+            int v = Math.Max(min, Math.Min(max, _trkPower.Value));
+            _trkPower.Minimum = Math.Min(_trkPower.Minimum, min); // widen first so Value is never out of range
+            _trkPower.Maximum = Math.Max(_trkPower.Maximum, max);
+            _trkPower.Value = v;
+            _trkPower.Minimum = min;
+            _trkPower.Maximum = max;
+            _trkPower.TickFrequency = max - min > 80 ? 20 : 4;
+            _lblPower.Text = SliderGainDb().ToString("0.00", Inv) + "\ndB";
+        }
+
         private void SetGainSlider(double db)
         {
             int v = (int)Math.Round(db * 4);
@@ -913,7 +928,7 @@ namespace DatvTx.UI
                 _chkSmooth.Checked = p.SmoothMotion;
                 SelectRollOff(p.RollOff);
                 SelectOrText(_cmbFreq, p.TxFrequencyMHz.ToString("0.00", Inv));
-                _trkPower.Maximum = Math.Max(-196, (int)Math.Round(Math.Min(0, _s.PowerLimitDb) * 4));
+                ApplyPowerRange();
                 SetGainSlider(p.GainDb);
                 _numDGain.Value = 0;
                 _numDGain.Enabled = p.Constellation == "qpsk";
@@ -1002,8 +1017,7 @@ namespace DatvTx.UI
             _telemetry.Clear();
             _lblHardware.Text = _tx.DisplayName;
             _lblHelp.Text = _tx.HelpText;
-            _trkPower.Maximum = Math.Max(-196, (int)Math.Round(Math.Min(0, _s.PowerLimitDb) * 4));
-            if (_trkPower.Value > _trkPower.Maximum) _trkPower.Value = _trkPower.Maximum;
+            ApplyPowerRange();
             UpdateHeader();
             UpdateButtons();
         }
