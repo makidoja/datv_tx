@@ -122,6 +122,18 @@ namespace DatvTx.Core
 
             failures += Pluto0303MockTest(log);
 
+            // ESP32-C3 power slider floor follows the level settings (bottom of slider = lowest level, never below it)
+            foreach (var t in new[] { new { max = 250, min = 15 }, new { max = 100, min = 15 }, new { max = 480, min = 1 } })
+            {
+                var es = new AppSettings { Esp32MaxLevel = t.max, Esp32MinLevel = t.min };
+                double floorDb;
+                using (var esp = new DatvTx.Hardware.SdrHelperTransmitter(es, "esp32")) floorDb = esp.MinGainDb;
+                double lvl = t.max * Math.Pow(10, floorDb / 20);
+                bool ok = Math.Round(lvl) >= t.min && Math.Round(t.max * Math.Pow(10, (floorDb - 0.25) / 20)) <= t.min;
+                log.AppendLine((ok ? "PASS" : "FAIL") + " ESP32 level " + t.min + "-" + t.max + " -> slider floor " + floorDb.ToString("0.##") + " dB (level " + lvl.ToString("0.0") + ")");
+                if (!ok) failures++;
+            }
+
             log.AppendLine(failures == 0 ? "SELFTEST OK" : "SELFTEST FAILED: " + failures);
             File.WriteAllText(logPath, log.ToString());
             return failures == 0 ? 0 : 1;

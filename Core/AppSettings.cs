@@ -130,10 +130,10 @@ namespace DatvTx.Core
         [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 COM port"), Description("Blank = find the board automatically (Espressif USB 303A:1001). Or enter e.g. COM5 or /dev/ttyACM0.")]
         public string Esp32Port { get; set; } = "";
 
-        [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 level at 0 dB"), Description("Firmware output level (1-480) when the power slider is at 0 dB. Not calibrated power. HB9IIU measured: linear to about 100, compresses above about 250 (more distortion). Default 100.")]
-        public int Esp32MaxLevel { get; set; } = 100;
+        [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 level at 0 dB"), Description("Firmware output level (1-480) when the power slider is at 0 dB. Not calibrated power. Usable range is about 15-250: linear to about 100, compresses above about 250 (more distortion). Default 250.")]
+        public int Esp32MaxLevel { get; set; } = 250;
 
-        [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 lowest level"), Description("The level never goes below this (1-480). Below about 15 the board's carrier leak shows as a spike in the signal; use an attenuator for less power.")]
+        [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 lowest level"), Description("Level at the bottom of the power slider (1-480); the slider's lowest dB is worked out from this. Below about 15 the board's carrier leak shows as a spike in the signal; use an attenuator for less power. Default 15.")]
         public int Esp32MinLevel { get; set; } = 15;
 
         [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 DC trim I / Q (codes)"), Description("Carrier leak correction for your board, as \"I Q\" in DAC codes (-512..512), e.g. \"1.5 -0.75\". Blank or 0 0 = none.")]
@@ -331,6 +331,12 @@ namespace DatvTx.Core
                 // v0.1.2 and earlier always ran NVENC at "slow" (DATV-NotSoEasy); now it follows the Speed preset.
                 if (PresetHard == "slow") PresetHard = "";
                 SettingsVersion = 3;
+            }
+            if (SettingsVersion < 4)
+            {
+                // v1.2.2 and earlier: ESP32 level at 0 dB defaulted to 100; the usable range is 15-250.
+                if (Esp32MaxLevel == 100) Esp32MaxLevel = 250;
+                SettingsVersion = 4;
             }
             if (Memories == null) Memories = new List<TxMemory>();
             if (Memories.Count == 0)

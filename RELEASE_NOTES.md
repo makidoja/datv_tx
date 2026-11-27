@@ -1,8 +1,10 @@
 ## DATV TX (M0CKE) v1.2.3 (next)
 
 ### Changed
-- ESP32-C3: the power slider now runs from -15 dB to 0 dB. Below -15 dB the board's carrier leak shows as a spike;
-  use an attenuator if you need less power. Saved memories below -15 dB load at -15 dB.
+- **ESP32-C3 power:** the slider now covers the usable firmware levels 15 to 250 (about -24.4 to 0 dB). Level 250 is
+  at 0 dB (was 100), and the bottom of the slider is level 15, below which the board's carrier leak shows as a spike.
+  Both are in Settings → ESP32-C3 DATV, and the slider range follows them.
+  **Note:** the same dB setting now gives about 8 dB more output than in 1.2.2 (if you'd kept the old default of 100).
 - OBS auto-start opens OBS as a normal window instead of minimised to the system tray.
 
 ## DATV TX (M0CKE) v1.2.2
