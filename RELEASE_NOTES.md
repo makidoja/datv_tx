@@ -1,4 +1,4 @@
-## DATV TX (M0CKE) v1.2.3 (next)
+## DATV TX (M0CKE) v1.2.3
 
 ### Changed
 - **ESP32-C3 power:** the slider now covers the usable firmware levels 15 to 250 (about -24.4 to 0 dB). Level 250 is

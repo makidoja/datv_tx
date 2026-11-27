@@ -1,0 +1,24 @@
+name: Publish v1.2.3
+
+# Committing this file publishes the release: the Windows build creates the v1.2.3 tag and
+# release with the installer and portable zip, then the Linux build attaches the AppImage
+# and tarball.
+on:
+  push:
+    branches: [ main ]
+    paths: [ '.github/workflows/publish-v1.2.3.yml' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    uses: ./.github/workflows/build.yml
+    with:
+      release_tag: v1.2.3
+  linux:
+    needs: release
+    uses: ./.github/workflows/build-linux.yml
+    with:
+      release_tag: v1.2.3
