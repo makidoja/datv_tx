@@ -41,7 +41,21 @@ namespace DatvTx.Hardware
                 int min = Math.Max(1, Math.Min(max, Settings.Esp32MinLevel));
                 if (min >= max) return -0.25;
                 double db = Math.Ceiling(20 * Math.Log10(min / (double)max) * 4) / 4;
-                return Math.Min(-0.25, db);
+                return Math.Min(MaxGainDb - 0.25, Math.Min(-0.25, db));
+            }
+        }
+
+        /// <summary>ESP32-C3: the slider's top is the "highest level" setting (default 125 = -6 dB), rounded down to a 0.25 dB step.</summary>
+        public override double MaxGainDb
+        {
+            get
+            {
+                if (!IsEsp32) return base.MaxGainDb;
+                int max = Math.Max(1, Math.Min(480, Settings.Esp32MaxLevel));
+                int top = Math.Max(1, Math.Min(max, Settings.Esp32TopLevel <= 0 ? max : Settings.Esp32TopLevel));
+                double db = Math.Round(20 * Math.Log10(top / (double)max) * 4) / 4;
+                if (Math.Round(max * Math.Pow(10, db / 20)) > top) db -= 0.25;
+                return Math.Min(0, db);
             }
         }
 
@@ -125,7 +139,7 @@ namespace DatvTx.Hardware
                 if (IsPluto)
                     return "Pluto with the standard ADI firmware: this PC makes the DVB-S2 signal and streams it to the Pluto (libiio, via " + (Settings.PlutoIp == "usb" ? "USB" : "its IP address") + "). Power 0 dB = full Pluto output. Set Pluto IP to \"usb\" to use the USB backend.";
                 if (IsEsp32)
-                    return "ESP32-C3 (SP8ESA ESP32-DATV firmware, flash it with C3CAST): DVB-S2 QPSK on 13 cm. Power slider covers level " + Math.Max(1, Settings.Esp32MinLevel) + " to " + Settings.Esp32MaxLevel + " (" + MinGainDb.ToString("0.##", Inv) + " to 0 dB); lower levels show a carrier spike, so use an attenuator for less. Needs RF filtering and a PA on air. Level and frequency changes restart the transmission briefly.";
+                    return "ESP32-C3 (SP8ESA ESP32-DATV firmware, flash it with C3CAST): DVB-S2 QPSK on 13 cm. Power slider covers " + MinGainDb.ToString("0.##", Inv) + " to " + MaxGainDb.ToString("0.##", Inv) + " dB (level " + Math.Max(1, Settings.Esp32MinLevel) + " to " + Settings.Esp32TopLevel + "), where the signal is cleanest; use an attenuator for less power. Needs RF filtering and a PA on air. Level and frequency changes restart the transmission briefly.";
                 if (IsMuntjac)
                     return "Muntjac by USB: DVB-S2 QPSK/8PSK, 125-1000 KS, 389.5-510 / 2390-2490 MHz. Power 0 dB = 0.20.";
                 if (!Platform.IsWindows)
@@ -220,7 +234,7 @@ namespace DatvTx.Hardware
             if (_proc != null) await ShutdownAsync();
             if (!File.Exists(HelperExe)) throw new FileNotFoundException(Platform.Exe("datvtx_mod") + " is missing from the program folder.", HelperExe);
 
-            double gain = Math.Max(MinGainDb, Math.Min(p.GainDb, Settings.PowerLimitDb));
+            double gain = Math.Max(MinGainDb, Math.Min(Math.Min(p.GainDb, MaxGainDb), Settings.PowerLimitDb));
             var args = new StringBuilder("--radio " + _radio);
             args.Append(" --freq ").Append((p.TxFrequencyMHz * 1e6).ToString("0", Inv));
             args.Append(ModArgs(p));
@@ -330,6 +344,7 @@ namespace DatvTx.Hardware
         public override Task SetGainAsync(double db)
         {
             if (db > Settings.PowerLimitDb) db = Settings.PowerLimitDb;
+            if (db > MaxGainDb) db = MaxGainDb;
             if (db < MinGainDb) db = MinGainDb;
             return Send("gain " + db.ToString("0.##", Inv));
         }

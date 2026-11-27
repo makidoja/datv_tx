@@ -701,11 +701,11 @@ namespace DatvTx.UI
 
         private double SliderGainDb() { return _trkPower.Value / 4.0; }
 
-        /// <summary>Slider range for the selected hardware: its lowest power (ESP32-C3: -15 dB) up to the power limit.</summary>
+        /// <summary>Slider range for the selected hardware: its lowest power (ESP32-C3: -10 to -6 dB) up to the power limit.</summary>
         private void ApplyPowerRange()
         {
             int min = (int)Math.Round((_tx != null ? _tx.MinGainDb : -50) * 4);
-            int max = Math.Max(min + 4, (int)Math.Round(Math.Min(0, _s.PowerLimitDb) * 4));
+            int max = Math.Max(min + 4, (int)Math.Round(Math.Min(_tx != null ? _tx.MaxGainDb : 0, _s.PowerLimitDb) * 4));
             int v = Math.Max(min, Math.Min(max, _trkPower.Value));
             _trkPower.Minimum = Math.Min(_trkPower.Minimum, min); // widen first so Value is never out of range
             _trkPower.Maximum = Math.Max(_trkPower.Maximum, max);

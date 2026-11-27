@@ -133,6 +133,15 @@ namespace DatvTx.Core
                 log.AppendLine((ok ? "PASS" : "FAIL") + " ESP32 level " + t.min + "-" + t.max + " -> slider floor " + floorDb.ToString("0.##") + " dB (level " + lvl.ToString("0.0") + ")");
                 if (!ok) failures++;
             }
+            {
+                var es = new AppSettings();
+                es.Normalise();
+                double lo, hi;
+                using (var esp = new DatvTx.Hardware.SdrHelperTransmitter(es, "esp32")) { lo = esp.MinGainDb; hi = esp.MaxGainDb; }
+                bool ok = lo == -10 && hi == -6;
+                log.AppendLine((ok ? "PASS" : "FAIL") + " ESP32 default slider " + lo + " to " + hi + " dB (want -10 to -6)");
+                if (!ok) failures++;
+            }
 
             log.AppendLine(failures == 0 ? "SELFTEST OK" : "SELFTEST FAILED: " + failures);
             File.WriteAllText(logPath, log.ToString());

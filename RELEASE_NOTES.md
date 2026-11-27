@@ -1,3 +1,11 @@
+## DATV TX (M0CKE) v1.2.5 (next)
+
+### Changed
+- **ESP32-C3 power:** the slider now runs from -10 dB to -6 dB (levels 79 to 125), where the signal is cleanest
+  (about -8 dB / level 100 is best). Use an attenuator if you need less power. The ends are set by
+  Settings → ESP32-C3 DATV → *lowest level* (79) and *highest level* (125) if you want to widen them.
+  Saved memories outside the range load at the nearest end.
+
 ## DATV TX (M0CKE) v1.2.4
 
 ### Changed

@@ -133,8 +133,11 @@ namespace DatvTx.Core
         [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 level at 0 dB"), Description("Firmware output level (1-480) when the power slider is at 0 dB. Not calibrated power. Usable range is about 15-250: linear to about 100, compresses above about 250 (more distortion). Default 250.")]
         public int Esp32MaxLevel { get; set; } = 250;
 
-        [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 lowest level"), Description("Level at the bottom of the power slider (1-480); the slider's lowest dB is worked out from this. Below about 15 the board's carrier leak shows as a spike in the signal; use an attenuator for less power. Default 15.")]
-        public int Esp32MinLevel { get; set; } = 15;
+        [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 lowest level"), Description("Level at the bottom of the power slider (1-480); the slider's lowest dB is worked out from this. The signal is cleanest around level 100 (-8 dB); below about 15 the board's carrier leak shows as a spike. Use an attenuator for less power. Default 79 (-10 dB).")]
+        public int Esp32MinLevel { get; set; } = 79;
+
+        [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 highest level"), Description("Level at the top of the power slider (1-480); the slider's highest dB is worked out from this. Above about 125 the output compresses and the signal gets dirtier. Default 125 (-6 dB).")]
+        public int Esp32TopLevel { get; set; } = 125;
 
         [Category("3d ESP32-C3 DATV"), DisplayName("ESP32 DC trim I / Q (codes)"), Description("Carrier leak correction for your board, as \"I Q\" in DAC codes (-512..512), e.g. \"1.5 -0.75\". Blank or 0 0 = none.")]
         public string Esp32DcTrim { get; set; } = "0 0";
@@ -337,6 +340,12 @@ namespace DatvTx.Core
                 // v1.2.2 and earlier: ESP32 level at 0 dB defaulted to 100; the usable range is 15-250.
                 if (Esp32MaxLevel == 100) Esp32MaxLevel = 250;
                 SettingsVersion = 4;
+            }
+            if (SettingsVersion < 5)
+            {
+                // v1.2.4 and earlier let the ESP32 slider go from level 15 to 250; it's cleanest at -10 to -6 dB (79-125).
+                if (Esp32MinLevel == 15) Esp32MinLevel = 79;
+                SettingsVersion = 5;
             }
             if (Memories == null) Memories = new List<TxMemory>();
             if (Memories.Count == 0)
